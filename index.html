@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OT Tremor Guard Pro</title>
+    <title>OT Tremor Guard Pro v2.0</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -17,27 +17,24 @@
         .view { display: none; }
         .view.active { display: block; }
 
-        /* 메뉴 스타일 */
+        /* 메뉴 */
         .menu-btn { position: fixed; top: 20px; right: 20px; z-index: 1000; background: white; border-radius: 50%; width: 45px; height: 45px; display: none; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; font-size: 1.5rem; }
         .menu-overlay { position: fixed; top: 0; right: -100%; width: 280px; height: 100%; background: white; z-index: 1001; transition: 0.3s; box-shadow: -5px 0 15px rgba(0,0,0,0.1); padding: 70px 20px 20px 20px; box-sizing: border-box; }
         .menu-overlay.open { right: 0; }
         .menu-item { padding: 18px; border-bottom: 1px solid #eee; cursor: pointer; font-weight: bold; }
         .menu-close { position: absolute; top: 20px; left: 20px; font-size: 1.2rem; cursor: pointer; }
 
-        /* 버튼 및 리스트 */
+        /* UI 요소 */
         button { background: var(--accent); color: white; border: none; padding: 15px; font-size: 1.1rem; border-radius: 12px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; transition: 0.3s; }
         button:disabled { background: #bdc3c7; }
         button.measuring { background: var(--danger); }
-        button.retry { background: var(--success); }
-        
         input { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 10px; }
         .item-list { list-style: none; padding: 0; margin-top: 20px; }
         .item-list li { background: #fff; padding: 16px; border-radius: 14px; margin-bottom: 12px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        .delete-btn { color: var(--danger); font-size: 1.2rem; cursor: pointer; padding: 5px; margin-left: 10px; }
+        .delete-btn { color: var(--danger); font-size: 0.9rem; cursor: pointer; margin-left: 10px; }
 
-        /* 결과 UI */
         .hz-display { font-size: 3.8rem; font-weight: 900; margin: 15px 0; text-align: center; }
-        .prob-box { font-weight: bold; padding: 12px; border-radius: 14px; background: #f8f9fa; margin-bottom: 10px; text-align: center; transition: 0.3s; }
+        .prob-box { font-weight: bold; padding: 12px; border-radius: 14px; background: #f8f9fa; margin-bottom: 10px; text-align: center; }
         .chart-container { height: 160px; margin-top: 15px; }
         #noiseAlert { display: none; background: var(--warning); color: white; padding: 10px; text-align: center; border-radius: 10px; margin-bottom: 10px; }
         #status { font-size: 0.95rem; text-align: center; min-height: 3em; line-height: 1.5; margin-top: 10px; }
@@ -105,8 +102,10 @@
 <script>
     let currentUser = null, selectedSubject = null, isMeasuring = false;
     let accelData = [], chart, countdownInterval, measureInterval;
+    let startTime, endTime;
+    let lastMag = 0; // 필터용 이전 값
+    const alpha = 0.7; // 필터 강도 (낮을수록 더 부드러워짐)
 
-    // --- 화면 제어 ---
     function showView(viewId) {
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
         document.getElementById(viewId).classList.add('active');
@@ -118,7 +117,6 @@
     function closeMenu() { document.getElementById('menuOverlay').classList.remove('open'); }
     function goToSubjectList() { showView('subjectView'); loadSubjects(); }
 
-    // --- 인증 ---
     async function login() {
         const btn = document.getElementById("loginBtnMain");
         btn.disabled = true; btn.innerText = "로그인 중...";
@@ -129,7 +127,6 @@
     function logout() { if(confirm("로그아웃 하시겠습니까?")) auth.signOut().then(() => location.reload()); }
     auth.onAuthStateChanged(user => { if (user) { currentUser = user; goToSubjectList(); } else { showView('loginView'); } });
 
-    // --- 대상자 관리 ---
     async function addSubject() {
         const name = document.getElementById('newSubjectName').value.trim();
         if (!name) return;
@@ -150,10 +147,7 @@
         });
     }
     async function deleteSubject(id) {
-        if(confirm("이 대상자를 삭제하시겠습니까?")) {
-            await db.collection('subjects').doc(id).delete();
-            loadSubjects();
-        }
+        if(confirm("대상자를 삭제하시겠습니까?")) { await db.collection('subjects').doc(id).delete(); loadSubjects(); }
     }
     function startSession(id, name) {
         selectedSubject = { id, name };
@@ -162,13 +156,12 @@
         initChart();
     }
 
-    // --- 차트 및 측정 로직 ---
     function initChart() {
         if(chart) chart.destroy();
         const ctx = document.getElementById('tremorChart').getContext('2d');
         chart = new Chart(ctx, {
             type: 'line',
-            data: { labels: [], datasets: [{ label: '강도', data: [], borderColor: '#3498db', borderWidth: 2, fill: false, pointRadius: 0 }] },
+            data: { labels: [], datasets: [{ label: '보정된 강도', data: [], borderColor: '#3498db', borderWidth: 2, fill: false, pointRadius: 0 }] },
             options: { responsive: true, maintainAspectRatio: false, scales: { x: { display: false }, y: { min: 0, max: 8 } }, animation: false }
         });
     }
@@ -180,41 +173,29 @@
         } else { runCountdown(); }
     });
 
-    // 1단계: 준비 카운트다운
     function runCountdown() {
         let timeLeft = 5;
         startBtn.disabled = true;
-        startBtn.classList.remove('retry');
         document.getElementById('status').innerText = "준비: 손을 편안히 하고 기다리세요.";
-        document.getElementById('probBox').innerText = "분석 중...";
-        document.getElementById('probBox').style.background = "#f8f9fa";
-        document.getElementById('probBox').style.color = "var(--primary)";
-
         countdownInterval = setInterval(() => {
             startBtn.innerText = `자세 준비 중... ${timeLeft}s`;
-            if (timeLeft-- <= 0) {
-                clearInterval(countdownInterval);
-                startMeasuring();
-            }
+            if (timeLeft-- <= 0) { clearInterval(countdownInterval); startMeasuring(); }
         }, 1000);
     }
 
-    // 2단계: 실제 데이터 측정
     function startMeasuring() {
-        isMeasuring = true; accelData = [];
+        isMeasuring = true; accelData = []; lastMag = 0;
         chart.data.labels = []; chart.data.datasets[0].data = [];
         startBtn.classList.add('measuring');
         
+        startTime = Date.now(); // 측정 시작 시간 기록
         let mTimeLeft = 5;
-        startBtn.innerText = `측정 중... ${mTimeLeft}s`; // 즉시 표시
+        startBtn.innerText = `측정 중... ${mTimeLeft}s`;
 
         measureInterval = setInterval(() => {
             mTimeLeft--;
-            if (mTimeLeft >= 0) {
-                startBtn.innerText = `측정 중... ${mTimeLeft}s`;
-            } else {
-                clearInterval(measureInterval);
-            }
+            if (mTimeLeft >= 0) startBtn.innerText = `측정 중... ${mTimeLeft}s`;
+            else clearInterval(measureInterval);
         }, 1000);
 
         window.addEventListener('devicemotion', processMotion);
@@ -225,67 +206,77 @@
         if (!isMeasuring) return;
         const acc = event.acceleration;
         if (!acc || !acc.x) return;
-        const mag = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
-        if (mag > 13.0) document.getElementById('noiseAlert').style.display = 'block';
+        
+        // 원본 값 계산
+        const rawMag = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
+        
+        // 1. 저주파 통과 필터 (Low-pass Filter) 적용
+        // 현재 값 = alpha * 이전값 + (1 - alpha) * 현재값
+        const filteredMag = (alpha * lastMag) + ((1 - alpha) * rawMag);
+        lastMag = filteredMag;
+
+        if (rawMag > 13.0) document.getElementById('noiseAlert').style.display = 'block';
         else setTimeout(() => document.getElementById('noiseAlert').style.display = 'none', 500);
-        accelData.push(mag);
+
+        accelData.push(filteredMag);
         if (accelData.length % 5 === 0) {
-            chart.data.labels.push(""); chart.data.datasets[0].data.push(mag); chart.update();
+            chart.data.labels.push(""); chart.data.datasets[0].data.push(filteredMag); chart.update();
         }
     }
 
-    // 3단계: 측정 종료 및 UI 업데이트
     function stopMeasuring() {
+        endTime = Date.now(); // 측정 종료 시간 기록
         isMeasuring = false;
-        clearInterval(measureInterval); // 타이머 강제 종료
+        clearInterval(measureInterval);
         window.removeEventListener('devicemotion', processMotion);
-        
         startBtn.classList.remove('measuring');
-        startBtn.classList.add('retry');
-        startBtn.disabled = false;
-        startBtn.innerText = "재측정"; // 텍스트 변경
-        
+        startBtn.disabled = false; startBtn.innerText = "재측정";
         analyze();
     }
 
-    // 4단계: 분석 로직
     async function analyze() {
         const n = accelData.length;
         if (n === 0) return;
+        
+        // 2. 실제 측정 시간 계산 (초 단위)
+        const duration = (endTime - startTime) / 1000;
+        
         const mean = accelData.reduce((a, b) => a + b, 0) / n;
         const processed = accelData.map(v => v - mean);
+        
         let peaks = 0, ampSum = 0;
         for (let i = 1; i < n - 1; i++) {
-            if (processed[i] > 0.35 && processed[i] > processed[i-1] && processed[i] > processed[i+1]) {
+            // 3. 임계값을 0.4로 소폭 상향하여 미세 노이즈 제거
+            if (processed[i] > 0.4 && processed[i] > processed[i-1] && processed[i] > processed[i+1]) {
                 peaks++; ampSum += processed[i];
             }
         }
-        const hz = (peaks / 5).toFixed(1);
+        
+        // 4. 실제 시간 기반 Hz 계산
+        const hz = (peaks / duration).toFixed(1);
         const avgAmp = (ampSum / (peaks || 1)).toFixed(2);
         
-        let fatigueProb = 0;
-        if (hz >= 3.5 && hz <= 6.5) fatigueProb += 50; 
-        else if (hz > 6.5 && hz <= 12) fatigueProb += 30; 
-        if (avgAmp > 0.8) fatigueProb += 20;
-        if (avgAmp > 1.5) fatigueProb += 30;
-        fatigueProb = Math.min(fatigueProb, 100);
+        let prob = 0;
+        if (hz >= 3.5 && hz <= 6.5) prob += 50; 
+        else if (hz > 6.5 && hz <= 12) prob += 30; 
+        if (avgAmp > 0.8) prob += 20;
+        if (avgAmp > 1.5) prob += 30;
+        prob = Math.min(prob, 100);
 
+        document.getElementById('result').innerHTML = `${hz}<span style="font-size:1.5rem"> Hz</span>`;
         const probBox = document.getElementById('probBox');
         const statusDiv = document.getElementById('status');
-        document.getElementById('result').innerHTML = `${hz}<span style="font-size:1.5rem"> Hz</span>`;
-        probBox.innerText = `피로도 확률: ${fatigueProb}%`;
+        probBox.innerText = `피로도 확률: ${prob}%`;
 
-        if (fatigueProb >= 80) {
+        if (prob >= 80) {
             if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
-            probBox.style.background = "var(--danger)";
-            probBox.style.color = "white";
+            probBox.style.background = "var(--danger)"; probBox.style.color = "white";
             statusDiv.innerHTML = `<b style="color:var(--danger)">⚠️ 위험: 즉시 휴식 권고</b><br>높은 진전 에너지가 감지되었습니다.`;
         } else {
-            probBox.style.background = "var(--success)";
-            probBox.style.color = "white";
+            probBox.style.background = "var(--success)"; probBox.style.color = "white";
             statusDiv.innerHTML = `✅ 정상: 안정적 상태`;
         }
-        saveData(hz, fatigueProb);
+        saveData(hz, prob);
     }
 
     async function saveData(hz, prob) {
