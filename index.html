@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OT Tremor Guard Pro</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="config.js"></script>
+    <style>
+        /* CSS 스타일은 이전과 동일 (가독성을 위해 생략) */
+        :root { --primary: #2c3e50; --accent: #3498db; --danger: #e74c3c; --warning: #f39c12; --success: #27ae60; --light: #f4f7f9; }
+        body { font-family: 'Pretendard', sans-serif; background: var(--light); color: var(--primary); margin: 0; padding: 0; }
+        .container { max-width: 450px; margin: auto; padding: 20px; box-sizing: border-box; }
+        .card { background: white; border-radius: 24px; padding: 25px; box-shadow: 0 12px 40px rgba(0,0,0,0.1); position: relative; overflow: hidden; }
+        .view { display: none; }
+        .view.active { display: block; }
+        button { background: var(--accent); color: white; border: none; padding: 15px; font-size: 1.1rem; border-radius: 12px; cursor: pointer; width: 100%; font-weight: bold; transition: 0.3s; margin-top: 10px; }
+        button:disabled { background: #bdc3c7; }
+        .btn-outline { background: transparent; border: 2px solid var(--accent); color: var(--accent); }
+        .btn-danger { background: var(--danger); }
+        .nav-menu { display: flex; justify-content: space-between; margin-bottom: 20px; background: white; padding: 10px; border-radius: 15px; }
+        .nav-menu button { width: auto; padding: 8px 12px; font-size: 0.8rem; margin: 0; }
+        .item-list { list-style: none; padding: 0; margin-top: 20px; }
+        .item-list li { background: #f8f9fa; padding: 15px; border-radius: 12px; margin-bottom: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border: 1px solid #eee; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.85rem; }
+        th, td { border-bottom: 1px solid #eee; padding: 10px; text-align: center; }
+        .hz-display { font-size: 3.5rem; font-weight: 900; margin: 15px 0; }
+        .prob-box { font-weight: bold; padding: 10px; border-radius: 12px; background: #f8f9fa; margin-bottom: 10px; }
+        .chart-container { height: 150px; margin-top: 15px; }
+        #noiseAlert { display: none; background: var(--warning); color: white; padding: 8px; font-size: 0.8rem; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="loginView" class="view active">
+        <div class="card" style="text-align: center;">
+            <h2>Tremor Guard <span style="color:var(--accent)">Pro</span></h2>
+            <p>데이터 관리를 위해 로그인해 주세요.</p>
+            <button onclick="login()">구글로 로그인하기</button>
+        </div>
+    </div>
+
+    <div id="menuBar" style="display: none;">
+        <div class="nav-menu">
+            <button class="btn-outline" onclick="showView('subjectView')">대상자 목록</button>
+            <button class="btn-outline" onclick="showHistory()">비교 테이블</button>
+            <button class="btn-danger" onclick="logout()">로그아웃</button>
+        </div>
+    </div>
+
+    <div id="subjectView" class="view">
+        <div class="card">
+            <h3>대상자 선택</h3>
+            <div style="display: flex; gap: 5px;">
+                <input type="text" id="newSubjectName" placeholder="새 대상자 이름" style="flex:1; padding:10px; border-radius:8px; border:1px solid #ddd;">
+                <button onclick="addSubject()" style="width:auto; margin:0;">추가</button>
+            </div>
+            <ul id="subjectList" class="item-list"></ul>
+        </div>
+    </div>
+
+    <div id="measureView" class="view">
+        <div class="card">
+            <div id="noiseAlert">⚠️ 노이즈 감지 (움직임을 최소화하세요)</div>
+            <h3 id="currentSubjectTitle">대상자: </h3>
+            <button id="startBtn">측정 시작</button>
+            <div class="result-area" style="text-align: center;">
+                <div class="hz-display" id="result">0.0<span style="font-size:1.5rem"> Hz</span></div>
+                <div id="probBox" class="prob-box">분석 대기 중</div>
+                <div id="status" style="font-size:0.9rem; min-height:2em;"></div>
+            </div>
+            <div class="chart-container">
+                <canvas id="tremorChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div id="historyView" class="view">
+        <div class="card">
+            <h3>측정 이력 (최근 10건)</h3>
+            <table id="historyTable">
+                <thead>
+                    <tr><th>대상자</th><th>Hz</th><th>확률</th><th>날짜</th></tr>
+                </thead>
+                <tbody id="historyBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 전역 변수 및 로직 (기존과 동일)
+    let currentUser = null;
+    let selectedSubject = null;
+    let isMeasuring = false;
+    let accelData = [];
+    let chart;
+
+    function showView(viewId) {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById(viewId).classList.add('active');
+        document.getElementById('menuBar').style.display = (viewId === 'loginView') ? 'none' : 'flex';
+    }
+
+    function login() { auth.signInWithPopup(provider).catch(alert); }
+    function logout() { auth.signOut().then(() => showView('loginView')); }
+
+    auth.onAuthStateChanged(user => {
+        if (user) { currentUser = user; showView('subjectView'); loadSubjects(); }
+        else { showView('loginView'); }
+    });
+
+    async function addSubject() {
+        const name = document.getElementById('newSubjectName').value;
+        if (!name) return;
+        await db.collection('subjects').add({
+            uid: currentUser.uid, name, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        document.getElementById('newSubjectName').value = '';
+        loadSubjects();
+    }
+
+    async function loadSubjects() {
+        const snapshot = await db.collection('subjects').where('uid', '==', currentUser.uid).orderBy('createdAt', 'desc').get();
+        const list = document.getElementById('subjectList');
+        list.innerHTML = '';
+        snapshot.forEach(doc => {
+            const sub = doc.data();
+            const li = document.createElement('li');
+            li.innerHTML = `<span>${sub.name}</span> <small>측정하기 ></small>`;
+            li.onclick = () => startSession(doc.id, sub.name);
+            list.appendChild(li);
+        });
+    }
+
+    function startSession(id, name) {
+        selectedSubject = { id, name };
+        document.getElementById('currentSubjectTitle').innerText = `대상자: ${name}`;
+        showView('measureView');
+        initChart();
+    }
+
+    function initChart() {
+        if(chart) chart.destroy();
+        const ctx = document.getElementById('tremorChart').getContext('2d');
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: '강도', data: [], borderColor: '#3498db', borderWidth: 2, fill: false, pointRadius: 0 }] },
+            options: { responsive: true, maintainAspectRatio: false, scales: { x: { display: false }, y: { min: 0, max: 8 } }, animation: false }
+        });
+    }
+
+    const startBtn = document.getElementById('startBtn');
+    startBtn.addEventListener('click', () => {
+        if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+            DeviceMotionEvent.requestPermission().then(state => { if(state === 'granted') runCountdown(); });
+        } else { runCountdown(); }
+    });
+
+    function runCountdown() {
+        let timeLeft = 5;
+        startBtn.disabled = true;
+        const timer = setInterval(() => {
+            startBtn.innerText = `준비 중... ${timeLeft}s`;
+            if (timeLeft-- <= 0) { clearInterval(timer); startMeasuring(); }
+        }, 1000);
+    }
+
+    function startMeasuring() {
+        isMeasuring = true;
+        accelData = [];
+        startBtn.innerText = `측정 중... 5s`;
+        window.addEventListener('devicemotion', processMotion);
+        setTimeout(stopMeasuring, 5000);
+    }
+
+    function processMotion(event) {
+        if (!isMeasuring) return;
+        const acc = event.acceleration;
+        if (!acc || !acc.x) return;
+        const mag = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
+        if (mag > 13.0) document.getElementById('noiseAlert').style.display = 'block';
+        else setTimeout(() => document.getElementById('noiseAlert').style.display = 'none', 500);
+        accelData.push(mag);
+        if (accelData.length % 5 === 0) {
+            chart.data.labels.push("");
+            chart.data.datasets[0].data.push(mag);
+            chart.update();
+        }
+    }
+
+    function stopMeasuring() {
+        isMeasuring = false;
+        window.removeEventListener('devicemotion', processMotion);
+        startBtn.disabled = false;
+        startBtn.innerText = "재측정";
+        analyze();
+    }
+
+    async function analyze() {
+        const n = accelData.length;
+        if (n === 0) return;
+        const mean = accelData.reduce((a, b) => a + b, 0) / n;
+        const processed = accelData.map(v => v - mean);
+        let peaks = 0, ampSum = 0;
+        for (let i = 1; i < n - 1; i++) {
+            if (processed[i] > 0.35 && processed[i] > processed[i-1] && processed[i] > processed[i+1]) {
+                peaks++; ampSum += processed[i];
+            }
+        }
+        const hz = (peaks / 5).toFixed(1);
+        const avgAmp = (ampSum / (peaks || 1)).toFixed(2);
+        let prob = 0;
+        if (hz >= 3.5 && hz <= 6.5) prob += 50; else if (hz > 6.5 && hz <= 12) prob += 30;
+        if (avgAmp > 0.8) prob += 20; if (avgAmp > 1.5) prob += 30;
+        prob = Math.min(prob, 100);
+
+        document.getElementById('result').innerHTML = `${hz}<span> Hz</span>`;
+        document.getElementById('probBox').innerText = `피로도 확률: ${prob}%`;
+        saveData(hz, prob);
+    }
+
+    async function saveData(hz, prob) {
+        await db.collection('measurements').add({
+            uid: currentUser.uid,
+            subjectId: selectedSubject.id,
+            subjectName: selectedSubject.name,
+            hz: hz,
+            prob: prob,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    }
+
+    async function showHistory() {
+        showView('historyView');
+        const snapshot = await db.collection('measurements').where('uid', '==', currentUser.uid).orderBy('timestamp', 'desc').limit(10).get();
+        const tbody = document.getElementById('historyBody');
+        tbody.innerHTML = '';
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const date = data.timestamp ? data.timestamp.toDate().toLocaleDateString() : '-';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${data.subjectName}</td><td>${data.hz}</td><td>${data.prob}%</td><td>${date}</td>`;
+            tbody.appendChild(tr);
+        });
+    }
+</script>
+</body>
+</html>
