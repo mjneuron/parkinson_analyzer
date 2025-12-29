@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OT Tremor Guard Pro v2.0</title>
+    <title>OT Tremor Guard Pro v3.0</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -16,28 +16,21 @@
         .card { background: white; border-radius: 24px; padding: 25px; box-shadow: 0 12px 40px rgba(0,0,0,0.1); position: relative; }
         .view { display: none; }
         .view.active { display: block; }
-
-        /* 메뉴 */
         .menu-btn { position: fixed; top: 20px; right: 20px; z-index: 1000; background: white; border-radius: 50%; width: 45px; height: 45px; display: none; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; font-size: 1.5rem; }
         .menu-overlay { position: fixed; top: 0; right: -100%; width: 280px; height: 100%; background: white; z-index: 1001; transition: 0.3s; box-shadow: -5px 0 15px rgba(0,0,0,0.1); padding: 70px 20px 20px 20px; box-sizing: border-box; }
         .menu-overlay.open { right: 0; }
         .menu-item { padding: 18px; border-bottom: 1px solid #eee; cursor: pointer; font-weight: bold; }
         .menu-close { position: absolute; top: 20px; left: 20px; font-size: 1.2rem; cursor: pointer; }
-
-        /* UI 요소 */
-        button { background: var(--accent); color: white; border: none; padding: 15px; font-size: 1.1rem; border-radius: 12px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; transition: 0.3s; }
+        button { background: var(--accent); color: white; border: none; padding: 15px; font-size: 1.1rem; border-radius: 12px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
         button:disabled { background: #bdc3c7; }
-        button.measuring { background: var(--danger); }
-        input { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 10px; }
+        button.export-btn { background: var(--success); margin-top: 15px; font-size: 0.9rem; padding: 10px; }
+        input, select { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 10px; }
         .item-list { list-style: none; padding: 0; margin-top: 20px; }
         .item-list li { background: #fff; padding: 16px; border-radius: 14px; margin-bottom: 12px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        .delete-btn { color: var(--danger); font-size: 0.9rem; cursor: pointer; margin-left: 10px; }
-
         .hz-display { font-size: 3.8rem; font-weight: 900; margin: 15px 0; text-align: center; }
         .prob-box { font-weight: bold; padding: 12px; border-radius: 14px; background: #f8f9fa; margin-bottom: 10px; text-align: center; }
         .chart-container { height: 160px; margin-top: 15px; }
-        #noiseAlert { display: none; background: var(--warning); color: white; padding: 10px; text-align: center; border-radius: 10px; margin-bottom: 10px; }
-        #status { font-size: 0.95rem; text-align: center; min-height: 3em; line-height: 1.5; margin-top: 10px; }
+        #status { font-size: 0.9rem; text-align: center; color: #666; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -54,57 +47,51 @@
 
     <div id="loginView" class="view active">
         <div class="card" style="text-align: center; margin-top: 60px;">
-            <h1>Tremor Guard</h1>
-            <p>AI 기반 진전 분석 솔루션</p>
-            <button id="loginBtnMain" onclick="login()">구글로 시작하기</button>
+            <h1>Tremor Guard <span style="font-size: 0.5em; vertical-align: middle;">PRO</span></h1>
+            <button onclick="login()">구글로 시작하기</button>
         </div>
     </div>
 
     <div id="subjectView" class="view">
         <div class="card">
-            <h3>대상자 선택 및 추가</h3>
-            <input type="text" id="newSubjectName" placeholder="성함을 입력하세요">
-            <button onclick="addSubject()">신규 추가</button>
+            <h3>대상자 선택</h3>
+            <input type="text" id="newSubjectName" placeholder="성함 입력">
+            <button onclick="addSubject()">대상자 추가</button>
             <ul id="subjectList" class="item-list"></ul>
         </div>
     </div>
 
     <div id="measureView" class="view">
         <div class="card">
-            <div id="noiseAlert">⚠️ 노이즈 감지 (움직임 주의)</div>
             <h3 id="currentSubjectTitle" style="margin-top:0;">대상자: </h3>
             <button id="startBtn">측정 시작</button>
-            <div class="result-area">
-                <div class="hz-display" id="result">0.0<span style="font-size:1.5rem"> Hz</span></div>
-                <div id="probBox" class="prob-box">분석 대기 중...</div>
-                <div id="status"></div>
-            </div>
-            <div class="chart-container">
-                <canvas id="tremorChart"></canvas>
-            </div>
+            <div class="hz-display" id="result">0.0<span style="font-size:1.5rem"> Hz</span></div>
+            <div id="probBox" class="prob-box">분석 대기 중...</div>
+            <div id="status"></div>
+            <div class="chart-container"><canvas id="tremorChart"></canvas></div>
         </div>
     </div>
 
     <div id="historyView" class="view">
         <div class="card">
-            <h3>측정 이력 데이터</h3>
-            <div style="overflow-x: auto;">
-                <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
-                    <thead><tr style="background:#f8f9fa;"><th style="padding:10px;">이름</th><th>Hz</th><th>확률</th><th>날짜</th></tr></thead>
+            <select id="subjectFilter" onchange="filterHistoryBySelect()"></select>
+            <button class="export-btn" onclick="exportToCSV()">📂 엑셀(CSV) 내보내기</button>
+            <div style="overflow-x: auto; margin-top:15px;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.75rem;">
+                    <thead><tr style="background:#f8f9fa;"><th>이름</th><th>Hz</th><th>진폭</th><th>방향</th><th>날짜</th></tr></thead>
                     <tbody id="historyBody" style="text-align:center;"></tbody>
                 </table>
             </div>
-            <button onclick="toggleMenu()" style="background:#eee; color:#333; margin-top:20px;">메뉴 열기</button>
         </div>
     </div>
 </div>
 
 <script>
     let currentUser = null, selectedSubject = null, isMeasuring = false;
-    let accelData = [], chart, countdownInterval, measureInterval;
-    let startTime, endTime;
-    let lastMag = 0; // 필터용 이전 값
-    const alpha = 0.7; // 필터 강도 (낮을수록 더 부드러워짐)
+    let rawAccelData = []; // {x, y, z, mag} 객체 저장
+    let chart, countdownInterval, measureInterval, startTime, endTime;
+    let lastFilteredMag = 0; 
+    const alpha = 0.7; // LPF 계수
 
     function showView(viewId) {
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -117,43 +104,33 @@
     function closeMenu() { document.getElementById('menuOverlay').classList.remove('open'); }
     function goToSubjectList() { showView('subjectView'); loadSubjects(); }
 
-    async function login() {
-        const btn = document.getElementById("loginBtnMain");
-        btn.disabled = true; btn.innerText = "로그인 중...";
-        try { await auth.signInWithPopup(provider); }
-        catch (err) { if (err.code !== 'auth/cancelled-popup-request') alert(err.message); }
-        finally { btn.disabled = false; btn.innerText = "구글로 시작하기"; }
-    }
-    function logout() { if(confirm("로그아웃 하시겠습니까?")) auth.signOut().then(() => location.reload()); }
+    async function login() { await auth.signInWithPopup(provider).catch(console.error); }
+    function logout() { auth.signOut().then(() => location.reload()); }
     auth.onAuthStateChanged(user => { if (user) { currentUser = user; goToSubjectList(); } else { showView('loginView'); } });
 
     async function addSubject() {
         const name = document.getElementById('newSubjectName').value.trim();
         if (!name) return;
         await db.collection('subjects').add({ uid: currentUser.uid, name, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-        document.getElementById('newSubjectName').value = '';
-        loadSubjects();
+        document.getElementById('newSubjectName').value = ''; loadSubjects();
     }
     async function loadSubjects() {
         const snapshot = await db.collection('subjects').where('uid', '==', currentUser.uid).get();
         const list = document.getElementById('subjectList');
-        list.innerHTML = '';
+        const filter = document.getElementById('subjectFilter');
+        list.innerHTML = ''; filter.innerHTML = '<option value="all">모든 대상자</option>';
         snapshot.forEach(doc => {
             const sub = doc.data();
-            const li = document.createElement('li');
-            li.innerHTML = `<div onclick="startSession('${doc.id}', '${sub.name}')" style="flex:1; cursor:pointer;"><strong>${sub.name}</strong></div>
-                            <div class="delete-btn" onclick="deleteSubject('${doc.id}')">🗑️ 삭제</div>`;
-            list.appendChild(li);
+            list.innerHTML += `<li><div onclick="startSession('${doc.id}', '${sub.name}')" style="flex:1;"><strong>${sub.name}</strong></div>
+                               <span onclick="showHistory('${doc.id}')" style="color:var(--accent); cursor:pointer;">📊</span></li>`;
+            filter.innerHTML += `<option value="${doc.id}">${sub.name}</option>`;
         });
     }
-    async function deleteSubject(id) {
-        if(confirm("대상자를 삭제하시겠습니까?")) { await db.collection('subjects').doc(id).delete(); loadSubjects(); }
-    }
+
     function startSession(id, name) {
         selectedSubject = { id, name };
         document.getElementById('currentSubjectTitle').innerText = `대상자: ${name}`;
-        showView('measureView');
-        initChart();
+        showView('measureView'); initChart();
     }
 
     function initChart() {
@@ -161,143 +138,136 @@
         const ctx = document.getElementById('tremorChart').getContext('2d');
         chart = new Chart(ctx, {
             type: 'line',
-            data: { labels: [], datasets: [{ label: '보정된 강도', data: [], borderColor: '#3498db', borderWidth: 2, fill: false, pointRadius: 0 }] },
+            data: { labels: [], datasets: [{ label: '강도', data: [], borderColor: '#3498db', borderWidth: 2, fill: false, pointRadius: 0 }] },
             options: { responsive: true, maintainAspectRatio: false, scales: { x: { display: false }, y: { min: 0, max: 8 } }, animation: false }
         });
     }
 
     const startBtn = document.getElementById('startBtn');
-    startBtn.addEventListener('click', () => {
-        if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+    startBtn.onclick = () => {
+        if (typeof DeviceMotionEvent.requestPermission === 'function') {
             DeviceMotionEvent.requestPermission().then(state => { if(state === 'granted') runCountdown(); });
         } else { runCountdown(); }
-    });
+    };
 
     function runCountdown() {
-        let timeLeft = 5;
-        startBtn.disabled = true;
-        document.getElementById('status').innerText = "준비: 손을 편안히 하고 기다리세요.";
+        let timeLeft = 5; startBtn.disabled = true;
         countdownInterval = setInterval(() => {
-            startBtn.innerText = `자세 준비 중... ${timeLeft}s`;
+            startBtn.innerText = `준비 중... ${timeLeft}s`;
             if (timeLeft-- <= 0) { clearInterval(countdownInterval); startMeasuring(); }
         }, 1000);
     }
 
     function startMeasuring() {
-        isMeasuring = true; accelData = []; lastMag = 0;
-        chart.data.labels = []; chart.data.datasets[0].data = [];
-        startBtn.classList.add('measuring');
-        
-        startTime = Date.now(); // 측정 시작 시간 기록
+        isMeasuring = true; rawAccelData = []; lastFilteredMag = 0;
+        startTime = Date.now();
+        startBtn.innerText = "측정 중... 5s";
         let mTimeLeft = 5;
-        startBtn.innerText = `측정 중... ${mTimeLeft}s`;
-
         measureInterval = setInterval(() => {
-            mTimeLeft--;
-            if (mTimeLeft >= 0) startBtn.innerText = `측정 중... ${mTimeLeft}s`;
-            else clearInterval(measureInterval);
+            mTimeLeft--; if(mTimeLeft >= 0) startBtn.innerText = `측정 중... ${mTimeLeft}s`;
         }, 1000);
-
         window.addEventListener('devicemotion', processMotion);
         setTimeout(stopMeasuring, 5000);
     }
 
     function processMotion(event) {
         if (!isMeasuring) return;
-        const acc = event.acceleration;
-        if (!acc || !acc.x) return;
-        
-        // 원본 값 계산
-        const rawMag = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
-        
-        // 1. 저주파 통과 필터 (Low-pass Filter) 적용
-        // 현재 값 = alpha * 이전값 + (1 - alpha) * 현재값
-        const filteredMag = (alpha * lastMag) + ((1 - alpha) * rawMag);
-        lastMag = filteredMag;
-
-        if (rawMag > 13.0) document.getElementById('noiseAlert').style.display = 'block';
-        else setTimeout(() => document.getElementById('noiseAlert').style.display = 'none', 500);
-
-        accelData.push(filteredMag);
-        if (accelData.length % 5 === 0) {
+        const acc = event.acceleration; if (!acc || !acc.x) return;
+        const mag = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
+        const filteredMag = (alpha * lastFilteredMag) + ((1 - alpha) * mag);
+        lastFilteredMag = filteredMag;
+        rawAccelData.push({ x: acc.x, y: acc.y, z: acc.z, mag: filteredMag });
+        if (rawAccelData.length % 5 === 0) {
             chart.data.labels.push(""); chart.data.datasets[0].data.push(filteredMag); chart.update();
         }
     }
 
     function stopMeasuring() {
-        endTime = Date.now(); // 측정 종료 시간 기록
-        isMeasuring = false;
-        clearInterval(measureInterval);
-        window.removeEventListener('devicemotion', processMotion);
-        startBtn.classList.remove('measuring');
+        endTime = Date.now(); isMeasuring = false;
+        clearInterval(measureInterval); window.removeEventListener('devicemotion', processMotion);
         startBtn.disabled = false; startBtn.innerText = "재측정";
         analyze();
     }
 
     async function analyze() {
-        const n = accelData.length;
-        if (n === 0) return;
-        
-        // 2. 실제 측정 시간 계산 (초 단위)
+        const n = rawAccelData.length; if (n === 0) return;
         const duration = (endTime - startTime) / 1000;
         
-        const mean = accelData.reduce((a, b) => a + b, 0) / n;
-        const processed = accelData.map(v => v - mean);
-        
-        let peaks = 0, ampSum = 0;
-        for (let i = 1; i < n - 1; i++) {
-            // 3. 임계값을 0.4로 소폭 상향하여 미세 노이즈 제거
-            if (processed[i] > 0.4 && processed[i] > processed[i-1] && processed[i] > processed[i+1]) {
-                peaks++; ampSum += processed[i];
+        // 각 축별 평균 계산
+        const meanX = rawAccelData.reduce((s, a) => s + a.x, 0) / n;
+        const meanY = rawAccelData.reduce((s, a) => s + a.y, 0) / n;
+        const meanZ = rawAccelData.reduce((s, a) => s + a.z, 0) / n;
+        const meanMag = rawAccelData.reduce((s, a) => s + a.mag, 0) / n;
+
+        let peaks = 0, ampSum = 0, ampX = 0, ampY = 0, ampZ = 0;
+        rawAccelData.forEach((d, i) => {
+            if (i > 0 && i < n - 1) {
+                const prev = rawAccelData[i-1].mag - meanMag;
+                const curr = d.mag - meanMag;
+                const next = rawAccelData[i+1].mag - meanMag;
+                if (curr > 0.4 && curr > prev && curr > next) {
+                    peaks++; ampSum += curr;
+                    ampX += Math.abs(d.x - meanX);
+                    ampY += Math.abs(d.y - meanY);
+                    ampZ += Math.abs(d.z - meanZ);
+                }
             }
-        }
-        
-        // 4. 실제 시간 기반 Hz 계산
+        });
+
         const hz = (peaks / duration).toFixed(1);
         const avgAmp = (ampSum / (peaks || 1)).toFixed(2);
+        const axes = { X: (ampX/peaks || 0).toFixed(2), Y: (ampY/peaks || 0).toFixed(2), Z: (ampZ/peaks || 0).toFixed(2) };
+        const domAxis = Object.keys(axes).reduce((a, b) => axes[a] > axes[b] ? a : b);
+
+        document.getElementById('result').innerHTML = `${hz}<span> Hz</span>`;
+        document.getElementById('status').innerText = `주요 방향: ${domAxis}축 (강도: ${axes[domAxis]})`;
         
-        let prob = 0;
-        if (hz >= 3.5 && hz <= 6.5) prob += 50; 
-        else if (hz > 6.5 && hz <= 12) prob += 30; 
-        if (avgAmp > 0.8) prob += 20;
-        if (avgAmp > 1.5) prob += 30;
-        prob = Math.min(prob, 100);
-
-        document.getElementById('result').innerHTML = `${hz}<span style="font-size:1.5rem"> Hz</span>`;
-        const probBox = document.getElementById('probBox');
-        const statusDiv = document.getElementById('status');
-        probBox.innerText = `피로도 확률: ${prob}%`;
-
-        if (prob >= 80) {
-            if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
-            probBox.style.background = "var(--danger)"; probBox.style.color = "white";
-            statusDiv.innerHTML = `<b style="color:var(--danger)">⚠️ 위험: 즉시 휴식 권고</b><br>높은 진전 에너지가 감지되었습니다.`;
-        } else {
-            probBox.style.background = "var(--success)"; probBox.style.color = "white";
-            statusDiv.innerHTML = `✅ 정상: 안정적 상태`;
-        }
-        saveData(hz, prob);
+        saveData(hz, avgAmp, domAxis, axes);
     }
 
-    async function saveData(hz, prob) {
+    async function saveData(hz, amp, dir, axes) {
         await db.collection('measurements').add({
             uid: currentUser.uid, subjectId: selectedSubject.id, subjectName: selectedSubject.name,
-            hz, prob, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            hz, amp, direction: dir, ampX: axes.X, ampY: axes.Y, ampZ: axes.Z,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
         });
     }
 
-    async function showHistory() {
+    // --- 이력 및 CSV 내보내기 ---
+    let currentHistoryData = [];
+    async function showHistory(targetId = null) {
         showView('historyView');
-        const snapshot = await db.collection('measurements').where('uid', '==', currentUser.uid).get();
+        const filter = document.getElementById('subjectFilter');
+        filter.value = targetId || 'all';
+        let query = db.collection('measurements').where('uid', '==', currentUser.uid);
+        if (targetId && targetId !== 'all') query = query.where('subjectId', '==', targetId);
+        
+        const snap = await query.get();
         const tbody = document.getElementById('historyBody');
-        tbody.innerHTML = '';
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            const date = data.timestamp ? data.timestamp.toDate().toLocaleDateString() : '-';
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td style="padding:10px;">${data.subjectName}</td><td>${data.hz}</td><td>${data.prob}%</td><td>${date}</td>`;
-            tbody.appendChild(tr);
+        tbody.innerHTML = ''; currentHistoryData = [];
+        snap.forEach(doc => currentHistoryData.push(doc.data()));
+        currentHistoryData.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+
+        currentHistoryData.forEach(d => {
+            const date = d.timestamp ? d.timestamp.toDate().toLocaleDateString() : '-';
+            tbody.innerHTML += `<tr><td>${d.subjectName}</td><td>${d.hz}</td><td>${d.amp}</td><td>${d.direction}</td><td>${date}</td></tr>`;
         });
+    }
+
+    function filterHistoryBySelect() { showHistory(document.getElementById('subjectFilter').value); }
+
+    function exportToCSV() {
+        if (currentHistoryData.length === 0) return alert("내보낼 데이터가 없습니다.");
+        let csv = "\uFEFF이름,주파수(Hz),평균진폭,주요방향,진폭X,진폭Y,진폭Z,날짜\n";
+        currentHistoryData.forEach(d => {
+            const date = d.timestamp ? d.timestamp.toDate().toLocaleString() : '-';
+            csv += `${d.subjectName},${d.hz},${d.amp},${d.direction},${d.ampX},${d.ampY},${d.ampZ},${date}\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `Tremor_Data_${new Date().toLocaleDateString()}.csv`;
+        link.click();
     }
 </script>
 </body>
