@@ -10,68 +10,77 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="config.js"></script>
     <style>
-        /* CSS 스타일은 이전과 동일 (가독성을 위해 생략) */
         :root { --primary: #2c3e50; --accent: #3498db; --danger: #e74c3c; --warning: #f39c12; --success: #27ae60; --light: #f4f7f9; }
-        body { font-family: 'Pretendard', sans-serif; background: var(--light); color: var(--primary); margin: 0; padding: 0; }
-        .container { max-width: 450px; margin: auto; padding: 20px; box-sizing: border-box; }
-        .card { background: white; border-radius: 24px; padding: 25px; box-shadow: 0 12px 40px rgba(0,0,0,0.1); position: relative; overflow: hidden; }
+        body { font-family: 'Pretendard', sans-serif; background: var(--light); color: var(--primary); margin: 0; padding: 0; overflow-x: hidden; }
+        
+        .container { max-width: 450px; margin: auto; padding: 20px; box-sizing: border-box; min-height: 100vh; position: relative; }
+        .card { background: white; border-radius: 24px; padding: 25px; box-shadow: 0 12px 40px rgba(0,0,0,0.1); position: relative; }
+        
+        /* 화면 제어 */
         .view { display: none; }
         .view.active { display: block; }
-        button { background: var(--accent); color: white; border: none; padding: 15px; font-size: 1.1rem; border-radius: 12px; cursor: pointer; width: 100%; font-weight: bold; transition: 0.3s; margin-top: 10px; }
-        button:disabled { background: #bdc3c7; }
-        .btn-outline { background: transparent; border: 2px solid var(--accent); color: var(--accent); }
-        .btn-danger { background: var(--danger); }
-        .nav-menu { display: flex; justify-content: space-between; margin-bottom: 20px; background: white; padding: 10px; border-radius: 15px; }
-        .nav-menu button { width: auto; padding: 8px 12px; font-size: 0.8rem; margin: 0; }
-        .item-list { list-style: none; padding: 0; margin-top: 20px; }
-        .item-list li { background: #f8f9fa; padding: 15px; border-radius: 12px; margin-bottom: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border: 1px solid #eee; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.85rem; }
-        th, td { border-bottom: 1px solid #eee; padding: 10px; text-align: center; }
-        .hz-display { font-size: 3.5rem; font-weight: 900; margin: 15px 0; }
-        .prob-box { font-weight: bold; padding: 10px; border-radius: 12px; background: #f8f9fa; margin-bottom: 10px; }
-        .chart-container { height: 150px; margin-top: 15px; }
-        #noiseAlert { display: none; background: var(--warning); color: white; padding: 8px; font-size: 0.8rem; text-align: center; }
+
+        /* 메뉴 버튼 (우측 상단) */
+        .menu-btn { position: fixed; top: 20px; right: 20px; z-index: 1000; background: white; border-radius: 50%; width: 45px; height: 45px; display: none; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; font-size: 1.5rem; }
+        
+        /* 메뉴 오버레이 */
+        .menu-overlay { position: fixed; top: 0; right: -100%; width: 250px; height: 100%; background: white; z-index: 1001; transition: 0.3s; box-shadow: -5px 0 15px rgba(0,0,0,0.1); padding: 60px 20px 20px 20px; }
+        .menu-overlay.open { right: 0; }
+        .menu-item { padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; font-weight: bold; }
+        .menu-close { position: absolute; top: 20px; left: 20px; font-size: 1.2rem; cursor: pointer; }
+
+        /* 버튼 및 입력창 */
+        button { background: var(--accent); color: white; border: none; padding: 15px; font-size: 1.1rem; border-radius: 12px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
+        input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 10px; }
+        
+        .item-list { list-style: none; padding: 0; margin-top: 20px; max-height: 400px; overflow-y: auto; }
+        .item-list li { background: #f8f9fa; padding: 15px; border-radius: 12px; margin-bottom: 10px; cursor: pointer; border: 1px solid #eee; display: flex; justify-content: space-between; }
+
+        /* 측정 UI */
+        .hz-display { font-size: 3.5rem; font-weight: 900; margin: 15px 0; text-align: center; }
+        .prob-box { font-weight: bold; padding: 10px; border-radius: 12px; background: #f8f9fa; margin-bottom: 10px; text-align: center; }
+        .chart-container { height: 180px; margin-top: 15px; }
+        #noiseAlert { display: none; background: var(--warning); color: white; padding: 8px; font-size: 0.8rem; text-align: center; border-radius: 8px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div id="loginView" class="view active">
-        <div class="card" style="text-align: center;">
-            <h2>Tremor Guard <span style="color:var(--accent)">Pro</span></h2>
-            <p>데이터 관리를 위해 로그인해 주세요.</p>
-            <button onclick="login()">구글로 로그인하기</button>
-        </div>
+    <div id="menuBtn" class="menu-btn" onclick="toggleMenu()">☰</div>
+
+    <div id="menuOverlay" class="menu-overlay">
+        <div class="menu-close" onclick="toggleMenu()">✕ 닫기</div>
+        <div class="menu-item" onclick="showHistory()">📊 데이터 비교 테이블</div>
+        <div class="menu-item" onclick="goToSubjectList()">👥 대상자 목록 (변경)</div>
+        <div class="menu-item" style="color: var(--danger);" onclick="logout()">🏃 로그아웃</div>
     </div>
 
-    <div id="menuBar" style="display: none;">
-        <div class="nav-menu">
-            <button class="btn-outline" onclick="showView('subjectView')">대상자 목록</button>
-            <button class="btn-outline" onclick="showHistory()">비교 테이블</button>
-            <button class="btn-danger" onclick="logout()">로그아웃</button>
+    <div id="loginView" class="view active">
+        <div class="card" style="text-align: center; margin-top: 50px;">
+            <h2>Tremor Guard <span style="color:var(--accent)">Pro</span></h2>
+            <p>치료사를 위한 진전 분석 솔루션</p>
+            <button onclick="login()">구글로 시작하기</button>
         </div>
     </div>
 
     <div id="subjectView" class="view">
         <div class="card">
-            <h3>대상자 선택</h3>
-            <div style="display: flex; gap: 5px;">
-                <input type="text" id="newSubjectName" placeholder="새 대상자 이름" style="flex:1; padding:10px; border-radius:8px; border:1px solid #ddd;">
-                <button onclick="addSubject()" style="width:auto; margin:0;">추가</button>
-            </div>
+            <h3>대상자 관리</h3>
+            <input type="text" id="newSubjectName" placeholder="새 대상자 성함 입력">
+            <button onclick="addSubject()">대상자 추가하기</button>
             <ul id="subjectList" class="item-list"></ul>
         </div>
     </div>
 
     <div id="measureView" class="view">
         <div class="card">
-            <div id="noiseAlert">⚠️ 노이즈 감지 (움직임을 최소화하세요)</div>
-            <h3 id="currentSubjectTitle">대상자: </h3>
+            <div id="noiseAlert">⚠️ 노이즈 감지 (움직임 주의)</div>
+            <h3 id="currentSubjectTitle" style="margin-top:0;">대상자: </h3>
             <button id="startBtn">측정 시작</button>
-            <div class="result-area" style="text-align: center;">
+            <div class="result-area">
                 <div class="hz-display" id="result">0.0<span style="font-size:1.5rem"> Hz</span></div>
-                <div id="probBox" class="prob-box">분석 대기 중</div>
-                <div id="status" style="font-size:0.9rem; min-height:2em;"></div>
+                <div id="probBox" class="prob-box">준비 완료</div>
+                <div id="status" style="font-size:0.9rem; text-align:center; min-height:2em;"></div>
             </div>
             <div class="chart-container">
                 <canvas id="tremorChart"></canvas>
@@ -81,60 +90,90 @@
 
     <div id="historyView" class="view">
         <div class="card">
-            <h3>측정 이력 (최근 10건)</h3>
-            <table id="historyTable">
-                <thead>
-                    <tr><th>대상자</th><th>Hz</th><th>확률</th><th>날짜</th></tr>
-                </thead>
-                <tbody id="historyBody"></tbody>
-            </table>
+            <h3>데이터 분석 이력</h3>
+            <div style="overflow-x: auto;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                    <thead>
+                        <tr style="border-bottom:2px solid #eee;">
+                            <th style="padding:10px;">이름</th><th style="padding:10px;">Hz</th><th style="padding:10px;">확률</th><th style="padding:10px;">날짜</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody" style="text-align:center;"></tbody>
+                </table>
+            </div>
+            <button class="btn-outline" onclick="toggleMenu()" style="background:#eee; color:#333; margin-top:20px;">메뉴로 돌아가기</button>
         </div>
     </div>
 </div>
 
 <script>
-    // 전역 변수 및 로직 (기존과 동일)
     let currentUser = null;
     let selectedSubject = null;
     let isMeasuring = false;
     let accelData = [];
     let chart;
 
+    // --- 화면 및 메뉴 제어 ---
     function showView(viewId) {
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
         document.getElementById(viewId).classList.add('active');
-        document.getElementById('menuBar').style.display = (viewId === 'loginView') ? 'none' : 'flex';
+        // 로그인 화면이 아닐 때만 메뉴 버튼 표시
+        document.getElementById('menuBtn').style.display = (viewId === 'loginView') ? 'none' : 'flex';
+        closeMenu();
     }
 
-    function login() { auth.signInWithPopup(provider).catch(alert); }
-    function logout() { auth.signOut().then(() => showView('loginView')); }
+    function toggleMenu() { document.getElementById('menuOverlay').classList.toggle('open'); }
+    function closeMenu() { document.getElementById('menuOverlay').classList.remove('open'); }
+    function goToSubjectList() { showView('subjectView'); loadSubjects(); }
+
+    // --- Firebase 인증 ---
+    function login() { auth.signInWithPopup(provider).catch(err => alert("로그인 실패: " + err.message)); }
+    function logout() { auth.signOut().then(() => { location.reload(); }); }
 
     auth.onAuthStateChanged(user => {
-        if (user) { currentUser = user; showView('subjectView'); loadSubjects(); }
+        if (user) { currentUser = user; goToSubjectList(); }
         else { showView('loginView'); }
     });
 
+    // --- 대상자 관리 (수정된 부분) ---
     async function addSubject() {
-        const name = document.getElementById('newSubjectName').value;
-        if (!name) return;
-        await db.collection('subjects').add({
-            uid: currentUser.uid, name, createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        document.getElementById('newSubjectName').value = '';
-        loadSubjects();
+        const nameInput = document.getElementById('newSubjectName');
+        const name = nameInput.value.trim();
+        if (!name) return alert("이름을 입력해주세요.");
+
+        try {
+            await db.collection('subjects').add({
+                uid: currentUser.uid,
+                name: name,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            nameInput.value = '';
+            loadSubjects(); // 목록 새로고침
+        } catch (error) {
+            console.error("Error adding subject: ", error);
+            alert("대상자 추가 중 오류가 발생했습니다. 콘솔을 확인하세요.");
+        }
     }
 
     async function loadSubjects() {
-        const snapshot = await db.collection('subjects').where('uid', '==', currentUser.uid).orderBy('createdAt', 'desc').get();
-        const list = document.getElementById('subjectList');
-        list.innerHTML = '';
-        snapshot.forEach(doc => {
-            const sub = doc.data();
-            const li = document.createElement('li');
-            li.innerHTML = `<span>${sub.name}</span> <small>측정하기 ></small>`;
-            li.onclick = () => startSession(doc.id, sub.name);
-            list.appendChild(li);
-        });
+        try {
+            // orderBy를 제거하여 색인 문제로 인한 쿼리 실패 방지 (우선 동작 확인용)
+            const snapshot = await db.collection('subjects')
+                .where('uid', '==', currentUser.uid)
+                .get();
+            
+            const list = document.getElementById('subjectList');
+            list.innerHTML = '';
+            snapshot.forEach(doc => {
+                const sub = doc.data();
+                const li = document.createElement('li');
+                li.innerHTML = `<span>${sub.name}</span> <small style="color:var(--accent)">선택 ></small>`;
+                li.onclick = () => startSession(doc.id, sub.name);
+                list.appendChild(li);
+            });
+        } catch (error) {
+            console.error("Error loading subjects: ", error);
+        }
     }
 
     function startSession(id, name) {
@@ -144,12 +183,13 @@
         initChart();
     }
 
+    // --- 측정 로직 (이전과 동일하지만 인터페이스 통합) ---
     function initChart() {
         if(chart) chart.destroy();
         const ctx = document.getElementById('tremorChart').getContext('2d');
         chart = new Chart(ctx, {
             type: 'line',
-            data: { labels: [], datasets: [{ label: '강도', data: [], borderColor: '#3498db', borderWidth: 2, fill: false, pointRadius: 0 }] },
+            data: { labels: [], datasets: [{ label: '진전 강도', data: [], borderColor: '#3498db', borderWidth: 2, fill: false, pointRadius: 0 }] },
             options: { responsive: true, maintainAspectRatio: false, scales: { x: { display: false }, y: { min: 0, max: 8 } }, animation: false }
         });
     }
@@ -165,14 +205,13 @@
         let timeLeft = 5;
         startBtn.disabled = true;
         const timer = setInterval(() => {
-            startBtn.innerText = `준비 중... ${timeLeft}s`;
+            startBtn.innerText = `자세 준비... ${timeLeft}s`;
             if (timeLeft-- <= 0) { clearInterval(timer); startMeasuring(); }
         }, 1000);
     }
 
     function startMeasuring() {
-        isMeasuring = true;
-        accelData = [];
+        isMeasuring = true; accelData = [];
         startBtn.innerText = `측정 중... 5s`;
         window.addEventListener('devicemotion', processMotion);
         setTimeout(stopMeasuring, 5000);
@@ -225,29 +264,35 @@
     }
 
     async function saveData(hz, prob) {
-        await db.collection('measurements').add({
-            uid: currentUser.uid,
-            subjectId: selectedSubject.id,
-            subjectName: selectedSubject.name,
-            hz: hz,
-            prob: prob,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        try {
+            await db.collection('measurements').add({
+                uid: currentUser.uid,
+                subjectId: selectedSubject.id,
+                subjectName: selectedSubject.name,
+                hz: hz,
+                prob: prob,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        } catch(e) { console.error(e); }
     }
 
     async function showHistory() {
         showView('historyView');
-        const snapshot = await db.collection('measurements').where('uid', '==', currentUser.uid).orderBy('timestamp', 'desc').limit(10).get();
+        const snapshot = await db.collection('measurements')
+            .where('uid', '==', currentUser.uid)
+            .get();
         const tbody = document.getElementById('historyBody');
         tbody.innerHTML = '';
         snapshot.forEach(doc => {
             const data = doc.data();
             const date = data.timestamp ? data.timestamp.toDate().toLocaleDateString() : '-';
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${data.subjectName}</td><td>${data.hz}</td><td>${data.prob}%</td><td>${date}</td>`;
+            tr.style.borderBottom = "1px solid #eee";
+            tr.innerHTML = `<td style="padding:10px;">${data.subjectName}</td><td>${data.hz}</td><td>${data.prob}%</td><td>${date}</td>`;
             tbody.appendChild(tr);
         });
     }
 </script>
+
 </body>
 </html>
