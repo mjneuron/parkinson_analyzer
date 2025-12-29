@@ -158,10 +158,13 @@
 
     // 인증 상태 변경 감지
     auth.onAuthStateChanged(user => {
+        console.log("인증 상태 변경됨:", user); // 이 로그가 찍히는지 확인하세요.
         if (user) {
+            console.log("로그인 성공:", user.displayName);
             currentUser = user;
-            goToSubjectList();
+            goToSubjectList(); // 성공 시 대상자 목록으로 이동
         } else {
+            console.log("현재 로그아웃 상태");
             showView('loginView');
         }
     });
