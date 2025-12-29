@@ -20,27 +20,29 @@
         .view { display: none; }
         .view.active { display: block; }
 
-        /* 메뉴 버튼 (우측 상단) */
+        /* 메뉴 버튼 (우측 상단 고정) */
         .menu-btn { position: fixed; top: 20px; right: 20px; z-index: 1000; background: white; border-radius: 50%; width: 45px; height: 45px; display: none; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; font-size: 1.5rem; }
         
         /* 메뉴 오버레이 */
-        .menu-overlay { position: fixed; top: 0; right: -100%; width: 250px; height: 100%; background: white; z-index: 1001; transition: 0.3s; box-shadow: -5px 0 15px rgba(0,0,0,0.1); padding: 60px 20px 20px 20px; }
+        .menu-overlay { position: fixed; top: 0; right: -100%; width: 260px; height: 100%; background: white; z-index: 1001; transition: 0.3s; box-shadow: -5px 0 15px rgba(0,0,0,0.1); padding: 70px 20px 20px 20px; box-sizing: border-box; }
         .menu-overlay.open { right: 0; }
-        .menu-item { padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; font-weight: bold; }
-        .menu-close { position: absolute; top: 20px; left: 20px; font-size: 1.2rem; cursor: pointer; }
+        .menu-item { padding: 18px; border-bottom: 1px solid #eee; cursor: pointer; font-weight: bold; color: var(--primary); }
+        .menu-item:active { background-color: #f0f0f0; }
+        .menu-close { position: absolute; top: 20px; left: 20px; font-size: 1.2rem; cursor: pointer; color: #777; }
 
-        /* 버튼 및 입력창 */
-        button { background: var(--accent); color: white; border: none; padding: 15px; font-size: 1.1rem; border-radius: 12px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
-        input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 10px; }
+        /* 공통 버튼 및 입력창 */
+        button { background: var(--accent); color: white; border: none; padding: 15px; font-size: 1.1rem; border-radius: 12px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; transition: 0.2s; }
+        button:disabled { background: #bdc3c7; cursor: not-allowed; }
+        input { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 10px; font-size: 1rem; }
         
-        .item-list { list-style: none; padding: 0; margin-top: 20px; max-height: 400px; overflow-y: auto; }
-        .item-list li { background: #f8f9fa; padding: 15px; border-radius: 12px; margin-bottom: 10px; cursor: pointer; border: 1px solid #eee; display: flex; justify-content: space-between; }
+        .item-list { list-style: none; padding: 0; margin-top: 20px; max-height: 450px; overflow-y: auto; }
+        .item-list li { background: #fff; padding: 16px; border-radius: 14px; margin-bottom: 12px; cursor: pointer; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.03); }
 
         /* 측정 UI */
-        .hz-display { font-size: 3.5rem; font-weight: 900; margin: 15px 0; text-align: center; }
-        .prob-box { font-weight: bold; padding: 10px; border-radius: 12px; background: #f8f9fa; margin-bottom: 10px; text-align: center; }
-        .chart-container { height: 180px; margin-top: 15px; }
-        #noiseAlert { display: none; background: var(--warning); color: white; padding: 8px; font-size: 0.8rem; text-align: center; border-radius: 8px; margin-bottom: 10px; }
+        .hz-display { font-size: 3.8rem; font-weight: 900; margin: 15px 0; text-align: center; color: var(--primary); }
+        .prob-box { font-weight: bold; padding: 12px; border-radius: 14px; background: #f8f9fa; margin-bottom: 10px; text-align: center; }
+        .chart-container { height: 180px; margin-top: 20px; background: #fff; border-radius: 12px; }
+        #noiseAlert { display: none; background: var(--warning); color: white; padding: 10px; font-size: 0.85rem; text-align: center; border-radius: 10px; margin-bottom: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -56,31 +58,31 @@
     </div>
 
     <div id="loginView" class="view active">
-        <div class="card" style="text-align: center; margin-top: 50px;">
-            <h2>Tremor Guard <span style="color:var(--accent)">Pro</span></h2>
-            <p>치료사를 위한 진전 분석 솔루션</p>
+        <div class="card" style="text-align: center; margin-top: 60px;">
+            <h1 style="margin-bottom:10px;">Tremor Guard</h1>
+            <p style="color:#7f8c8d; margin-bottom:30px;">Professional Analysis Tool</p>
             <button onclick="login()">구글로 시작하기</button>
         </div>
     </div>
 
     <div id="subjectView" class="view">
         <div class="card">
-            <h3>대상자 관리</h3>
-            <input type="text" id="newSubjectName" placeholder="새 대상자 성함 입력">
-            <button onclick="addSubject()">대상자 추가하기</button>
+            <h3>대상자 선택 및 추가</h3>
+            <input type="text" id="newSubjectName" placeholder="성함을 입력하세요">
+            <button onclick="addSubject()">신규 추가</button>
             <ul id="subjectList" class="item-list"></ul>
         </div>
     </div>
 
     <div id="measureView" class="view">
         <div class="card">
-            <div id="noiseAlert">⚠️ 노이즈 감지 (움직임 주의)</div>
-            <h3 id="currentSubjectTitle" style="margin-top:0;">대상자: </h3>
+            <div id="noiseAlert">⚠️ 움직임이 감지되었습니다!</div>
+            <h3 id="currentSubjectTitle" style="margin-top:0; color:var(--accent);">대상자: </h3>
             <button id="startBtn">측정 시작</button>
             <div class="result-area">
                 <div class="hz-display" id="result">0.0<span style="font-size:1.5rem"> Hz</span></div>
-                <div id="probBox" class="prob-box">준비 완료</div>
-                <div id="status" style="font-size:0.9rem; text-align:center; min-height:2em;"></div>
+                <div id="probBox" class="prob-box">분석 대기 중...</div>
+                <div id="status" style="font-size:0.9rem; text-align:center; min-height:2em; color:#7f8c8d;"></div>
             </div>
             <div class="chart-container">
                 <canvas id="tremorChart"></canvas>
@@ -90,18 +92,18 @@
 
     <div id="historyView" class="view">
         <div class="card">
-            <h3>데이터 분석 이력</h3>
+            <h3>측정 이력 데이터</h3>
             <div style="overflow-x: auto;">
-                <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.85rem; margin-top:10px;">
                     <thead>
-                        <tr style="border-bottom:2px solid #eee;">
-                            <th style="padding:10px;">이름</th><th style="padding:10px;">Hz</th><th style="padding:10px;">확률</th><th style="padding:10px;">날짜</th>
+                        <tr style="border-bottom:2px solid #eee; background:#f8f9fa;">
+                            <th style="padding:12px;">대상자</th><th style="padding:12px;">Hz</th><th style="padding:12px;">확률</th><th style="padding:12px;">날짜</th>
                         </tr>
                     </thead>
                     <tbody id="historyBody" style="text-align:center;"></tbody>
                 </table>
             </div>
-            <button class="btn-outline" onclick="toggleMenu()" style="background:#eee; color:#333; margin-top:20px;">메뉴로 돌아가기</button>
+            <button onclick="toggleMenu()" style="background:#f1f2f6; color:#2f3542; margin-top:20px;">메뉴 닫기</button>
         </div>
     </div>
 </div>
@@ -110,14 +112,14 @@
     let currentUser = null;
     let selectedSubject = null;
     let isMeasuring = false;
+    let isLoggingIn = false;
     let accelData = [];
     let chart;
 
-    // --- 화면 및 메뉴 제어 ---
+    // --- 화면 제어 ---
     function showView(viewId) {
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
         document.getElementById(viewId).classList.add('active');
-        // 로그인 화면이 아닐 때만 메뉴 버튼 표시
         document.getElementById('menuBtn').style.display = (viewId === 'loginView') ? 'none' : 'flex';
         closeMenu();
     }
@@ -126,20 +128,49 @@
     function closeMenu() { document.getElementById('menuOverlay').classList.remove('open'); }
     function goToSubjectList() { showView('subjectView'); loadSubjects(); }
 
-    // --- Firebase 인증 ---
-    function login() { auth.signInWithPopup(provider).catch(err => alert("로그인 실패: " + err.message)); }
-    function logout() { auth.signOut().then(() => { location.reload(); }); }
+    // --- Firebase 인증 (리다이렉트 방식 + 중복 클릭 방지) ---
+    function login() {
+        if (isLoggingIn) return;
+        
+        isLoggingIn = true;
+        const loginBtn = document.querySelector("#loginView button");
+        if (loginBtn) {
+            loginBtn.disabled = true;
+            loginBtn.innerText = "로그인 시도 중...";
+        }
 
+        auth.signInWithRedirect(provider).catch(err => {
+            console.error(err);
+            alert("로그인 중 오류가 발생했습니다: " + err.message);
+            isLoggingIn = false;
+            if (loginBtn) {
+                loginBtn.disabled = false;
+                loginBtn.innerText = "구글로 시작하기";
+            }
+        });
+    }
+
+    function logout() {
+        if(confirm("로그아웃 하시겠습니까?")) {
+            auth.signOut().then(() => { location.reload(); });
+        }
+    }
+
+    // 인증 상태 변경 감지
     auth.onAuthStateChanged(user => {
-        if (user) { currentUser = user; goToSubjectList(); }
-        else { showView('loginView'); }
+        if (user) {
+            currentUser = user;
+            goToSubjectList();
+        } else {
+            showView('loginView');
+        }
     });
 
-    // --- 대상자 관리 (수정된 부분) ---
+    // --- 대상자 관리 로직 ---
     async function addSubject() {
         const nameInput = document.getElementById('newSubjectName');
         const name = nameInput.value.trim();
-        if (!name) return alert("이름을 입력해주세요.");
+        if (!name) return alert("대상자 성함을 입력해 주세요.");
 
         try {
             await db.collection('subjects').add({
@@ -148,16 +179,15 @@
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             nameInput.value = '';
-            loadSubjects(); // 목록 새로고침
+            loadSubjects();
         } catch (error) {
-            console.error("Error adding subject: ", error);
-            alert("대상자 추가 중 오류가 발생했습니다. 콘솔을 확인하세요.");
+            console.error(error);
+            alert("데이터 저장 실패: Firestore 규칙 또는 인덱스를 확인하세요.");
         }
     }
 
     async function loadSubjects() {
         try {
-            // orderBy를 제거하여 색인 문제로 인한 쿼리 실패 방지 (우선 동작 확인용)
             const snapshot = await db.collection('subjects')
                 .where('uid', '==', currentUser.uid)
                 .get();
@@ -167,13 +197,11 @@
             snapshot.forEach(doc => {
                 const sub = doc.data();
                 const li = document.createElement('li');
-                li.innerHTML = `<span>${sub.name}</span> <small style="color:var(--accent)">선택 ></small>`;
+                li.innerHTML = `<strong>${sub.name}</strong> <span style="font-size:0.8rem; color:var(--accent)">선택</span>`;
                 li.onclick = () => startSession(doc.id, sub.name);
                 list.appendChild(li);
             });
-        } catch (error) {
-            console.error("Error loading subjects: ", error);
-        }
+        } catch (error) { console.error(error); }
     }
 
     function startSession(id, name) {
@@ -183,13 +211,13 @@
         initChart();
     }
 
-    // --- 측정 로직 (이전과 동일하지만 인터페이스 통합) ---
+    // --- 진전 측정 로직 ---
     function initChart() {
         if(chart) chart.destroy();
         const ctx = document.getElementById('tremorChart').getContext('2d');
         chart = new Chart(ctx, {
             type: 'line',
-            data: { labels: [], datasets: [{ label: '진전 강도', data: [], borderColor: '#3498db', borderWidth: 2, fill: false, pointRadius: 0 }] },
+            data: { labels: [], datasets: [{ label: '진동 강도', data: [], borderColor: '#3498db', borderWidth: 2, fill: false, pointRadius: 0 }] },
             options: { responsive: true, maintainAspectRatio: false, scales: { x: { display: false }, y: { min: 0, max: 8 } }, animation: false }
         });
     }
@@ -205,7 +233,7 @@
         let timeLeft = 5;
         startBtn.disabled = true;
         const timer = setInterval(() => {
-            startBtn.innerText = `자세 준비... ${timeLeft}s`;
+            startBtn.innerText = `준비 하세요... ${timeLeft}s`;
             if (timeLeft-- <= 0) { clearInterval(timer); startMeasuring(); }
         }, 1000);
     }
@@ -236,7 +264,7 @@
         isMeasuring = false;
         window.removeEventListener('devicemotion', processMotion);
         startBtn.disabled = false;
-        startBtn.innerText = "재측정";
+        startBtn.innerText = "재측정 하기";
         analyze();
     }
 
@@ -273,24 +301,25 @@
                 prob: prob,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             });
-        } catch(e) { console.error(e); }
+        } catch(e) { console.error("Save error:", e); }
     }
 
     async function showHistory() {
         showView('historyView');
-        const snapshot = await db.collection('measurements')
-            .where('uid', '==', currentUser.uid)
-            .get();
-        const tbody = document.getElementById('historyBody');
-        tbody.innerHTML = '';
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            const date = data.timestamp ? data.timestamp.toDate().toLocaleDateString() : '-';
-            const tr = document.createElement('tr');
-            tr.style.borderBottom = "1px solid #eee";
-            tr.innerHTML = `<td style="padding:10px;">${data.subjectName}</td><td>${data.hz}</td><td>${data.prob}%</td><td>${date}</td>`;
-            tbody.appendChild(tr);
-        });
+        try {
+            const snapshot = await db.collection('measurements')
+                .where('uid', '==', currentUser.uid)
+                .get();
+            const tbody = document.getElementById('historyBody');
+            tbody.innerHTML = '';
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                const date = data.timestamp ? data.timestamp.toDate().toLocaleDateString() : '-';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td style="padding:12px;">${data.subjectName}</td><td>${data.hz}</td><td>${data.prob}%</td><td>${date}</td>`;
+                tbody.appendChild(tr);
+            });
+        } catch (e) { console.error(e); }
     }
 </script>
 
