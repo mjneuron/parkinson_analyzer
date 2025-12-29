@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OT Tremor Guard Pro v3.0</title>
+    <title>OT Tremor Guard Pro v3.1</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -16,27 +16,39 @@
         .card { background: white; border-radius: 24px; padding: 25px; box-shadow: 0 12px 40px rgba(0,0,0,0.1); position: relative; }
         .view { display: none; }
         .view.active { display: block; }
+        
+        /* 메뉴 버튼 스타일 */
         .menu-btn { position: fixed; top: 20px; right: 20px; z-index: 1000; background: white; border-radius: 50%; width: 45px; height: 45px; display: none; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; font-size: 1.5rem; }
         .menu-overlay { position: fixed; top: 0; right: -100%; width: 280px; height: 100%; background: white; z-index: 1001; transition: 0.3s; box-shadow: -5px 0 15px rgba(0,0,0,0.1); padding: 70px 20px 20px 20px; box-sizing: border-box; }
         .menu-overlay.open { right: 0; }
         .menu-item { padding: 18px; border-bottom: 1px solid #eee; cursor: pointer; font-weight: bold; }
         .menu-close { position: absolute; top: 20px; left: 20px; font-size: 1.2rem; cursor: pointer; }
+
+        /* 공통 요소 */
         button { background: var(--accent); color: white; border: none; padding: 15px; font-size: 1.1rem; border-radius: 12px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
         button:disabled { background: #bdc3c7; }
-        button.export-btn { background: var(--success); margin-top: 15px; font-size: 0.9rem; padding: 10px; }
-        input, select { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 10px; }
+        input, select { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 10px; font-size: 1rem; }
+        
+        /* 리스트 스타일 */
         .item-list { list-style: none; padding: 0; margin-top: 20px; }
-        .item-list li { background: #fff; padding: 16px; border-radius: 14px; margin-bottom: 12px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .item-list li { background: #fff; padding: 16px; border-radius: 14px; margin-bottom: 12px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
+        .action-btns { display: flex; gap: 15px; align-items: center; }
+        .hist-icon { color: var(--accent); cursor: pointer; font-size: 1.2rem; }
+        .del-icon { color: var(--danger); cursor: pointer; font-size: 1.2rem; }
+
+        /* 측정 결과 UI */
         .hz-display { font-size: 3.8rem; font-weight: 900; margin: 15px 0; text-align: center; }
         .prob-box { font-weight: bold; padding: 12px; border-radius: 14px; background: #f8f9fa; margin-bottom: 10px; text-align: center; }
         .chart-container { height: 160px; margin-top: 15px; }
         #status { font-size: 0.9rem; text-align: center; color: #666; margin-top: 10px; }
+        .export-btn { background: var(--success); margin-top: 15px; font-size: 0.9rem; padding: 10px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div id="menuBtn" class="menu-btn" onclick="toggleMenu()">☰</div>
+
     <div id="menuOverlay" class="menu-overlay">
         <div class="menu-close" onclick="toggleMenu()">✕ 닫기</div>
         <div id="backToMeasureItem" class="menu-item" style="color: var(--accent); display:none;" onclick="showView('measureView')">🏠 현재 측정 화면으로</div>
@@ -48,14 +60,15 @@
     <div id="loginView" class="view active">
         <div class="card" style="text-align: center; margin-top: 60px;">
             <h1>Tremor Guard <span style="font-size: 0.5em; vertical-align: middle;">PRO</span></h1>
+            <p>전문가용 진전 분석 솔루션</p>
             <button onclick="login()">구글로 시작하기</button>
         </div>
     </div>
 
     <div id="subjectView" class="view">
         <div class="card">
-            <h3>대상자 선택</h3>
-            <input type="text" id="newSubjectName" placeholder="성함 입력">
+            <h3>대상자 선택 및 추가</h3>
+            <input type="text" id="newSubjectName" placeholder="성함을 입력하세요">
             <button onclick="addSubject()">대상자 추가</button>
             <ul id="subjectList" class="item-list"></ul>
         </div>
@@ -74,7 +87,9 @@
 
     <div id="historyView" class="view">
         <div class="card">
-            <select id="subjectFilter" onchange="filterHistoryBySelect()"></select>
+            <div style="display: flex; gap:10px; align-items: center; margin-bottom:10px;">
+                <select id="subjectFilter" onchange="filterHistoryBySelect()" style="margin-bottom:0;"></select>
+            </div>
             <button class="export-btn" onclick="exportToCSV()">📂 엑셀(CSV) 내보내기</button>
             <div style="overflow-x: auto; margin-top:15px;">
                 <table style="width:100%; border-collapse:collapse; font-size:0.75rem;">
@@ -82,49 +97,77 @@
                     <tbody id="historyBody" style="text-align:center;"></tbody>
                 </table>
             </div>
+            <button onclick="toggleMenu()" style="background:#eee; color:#333; margin-top:20px;">메뉴 열기</button>
         </div>
     </div>
 </div>
 
 <script>
     let currentUser = null, selectedSubject = null, isMeasuring = false;
-    let rawAccelData = []; // {x, y, z, mag} 객체 저장
-    let chart, countdownInterval, measureInterval, startTime, endTime;
+    let rawAccelData = [], chart, countdownInterval, measureInterval, startTime, endTime;
     let lastFilteredMag = 0; 
     const alpha = 0.7; // LPF 계수
 
+    // --- 화면 제어 (수정됨: subjectView에서도 메뉴 숨김) ---
     function showView(viewId) {
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
         document.getElementById(viewId).classList.add('active');
-        document.getElementById('menuBtn').style.display = (viewId === 'loginView') ? 'none' : 'flex';
+        
+        // 로그인 화면(loginView)과 대상자 선택 화면(subjectView)에서는 메뉴 버튼을 숨깁니다.
+        if (viewId === 'loginView' || viewId === 'subjectView') {
+            document.getElementById('menuBtn').style.display = 'none';
+        } else {
+            document.getElementById('menuBtn').style.display = 'flex';
+        }
+        
         document.getElementById('backToMeasureItem').style.display = selectedSubject ? 'block' : 'none';
         closeMenu();
     }
+
     function toggleMenu() { document.getElementById('menuOverlay').classList.toggle('open'); }
     function closeMenu() { document.getElementById('menuOverlay').classList.remove('open'); }
     function goToSubjectList() { showView('subjectView'); loadSubjects(); }
 
+    // --- 인증 로직 ---
     async function login() { await auth.signInWithPopup(provider).catch(console.error); }
     function logout() { auth.signOut().then(() => location.reload()); }
     auth.onAuthStateChanged(user => { if (user) { currentUser = user; goToSubjectList(); } else { showView('loginView'); } });
 
+    // --- 대상자 관리 (수정됨: 삭제 버튼 복구) ---
     async function addSubject() {
         const name = document.getElementById('newSubjectName').value.trim();
         if (!name) return;
         await db.collection('subjects').add({ uid: currentUser.uid, name, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
         document.getElementById('newSubjectName').value = ''; loadSubjects();
     }
+
     async function loadSubjects() {
         const snapshot = await db.collection('subjects').where('uid', '==', currentUser.uid).get();
         const list = document.getElementById('subjectList');
         const filter = document.getElementById('subjectFilter');
         list.innerHTML = ''; filter.innerHTML = '<option value="all">모든 대상자</option>';
+        
         snapshot.forEach(doc => {
             const sub = doc.data();
-            list.innerHTML += `<li><div onclick="startSession('${doc.id}', '${sub.name}')" style="flex:1;"><strong>${sub.name}</strong></div>
-                               <span onclick="showHistory('${doc.id}')" style="color:var(--accent); cursor:pointer;">📊</span></li>`;
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <div onclick="startSession('${doc.id}', '${sub.name}')" style="flex:1; cursor:pointer;">
+                    <strong>${sub.name}</strong>
+                </div>
+                <div class="action-btns">
+                    <span class="hist-icon" onclick="showHistory('${doc.id}')" title="이력보기">📊</span>
+                    <span class="del-icon" onclick="deleteSubject('${doc.id}')" title="삭제">🗑️</span>
+                </div>`;
+            list.appendChild(li);
             filter.innerHTML += `<option value="${doc.id}">${sub.name}</option>`;
         });
+    }
+
+    async function deleteSubject(id) {
+        if(confirm("이 대상자를 삭제하시겠습니까? (측정 데이터는 보존됩니다)")) {
+            await db.collection('subjects').doc(id).delete();
+            loadSubjects();
+        }
     }
 
     function startSession(id, name) {
@@ -133,6 +176,7 @@
         showView('measureView'); initChart();
     }
 
+    // --- 측정 및 분석 로직 (이전과 동일) ---
     function initChart() {
         if(chart) chart.destroy();
         const ctx = document.getElementById('tremorChart').getContext('2d');
@@ -145,7 +189,7 @@
 
     const startBtn = document.getElementById('startBtn');
     startBtn.onclick = () => {
-        if (typeof DeviceMotionEvent.requestPermission === 'function') {
+        if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
             DeviceMotionEvent.requestPermission().then(state => { if(state === 'granted') runCountdown(); });
         } else { runCountdown(); }
     };
@@ -161,8 +205,8 @@
     function startMeasuring() {
         isMeasuring = true; rawAccelData = []; lastFilteredMag = 0;
         startTime = Date.now();
-        startBtn.innerText = "측정 중... 5s";
         let mTimeLeft = 5;
+        startBtn.innerText = `측정 중... ${mTimeLeft}s`;
         measureInterval = setInterval(() => {
             mTimeLeft--; if(mTimeLeft >= 0) startBtn.innerText = `측정 중... ${mTimeLeft}s`;
         }, 1000);
@@ -192,12 +236,10 @@
     async function analyze() {
         const n = rawAccelData.length; if (n === 0) return;
         const duration = (endTime - startTime) / 1000;
-        
-        // 각 축별 평균 계산
+        const meanMag = rawAccelData.reduce((s, a) => s + a.mag, 0) / n;
         const meanX = rawAccelData.reduce((s, a) => s + a.x, 0) / n;
         const meanY = rawAccelData.reduce((s, a) => s + a.y, 0) / n;
         const meanZ = rawAccelData.reduce((s, a) => s + a.z, 0) / n;
-        const meanMag = rawAccelData.reduce((s, a) => s + a.mag, 0) / n;
 
         let peaks = 0, ampSum = 0, ampX = 0, ampY = 0, ampZ = 0;
         rawAccelData.forEach((d, i) => {
@@ -233,7 +275,7 @@
         });
     }
 
-    // --- 이력 및 CSV 내보내기 ---
+    // --- 이력 필터링 및 CSV 내보내기 ---
     let currentHistoryData = [];
     async function showHistory(targetId = null) {
         showView('historyView');
