@@ -203,7 +203,7 @@
     function stopMeasuring() {
         endTime = Date.now(); isMeasuring = false;
         clearInterval(measureInterval); window.removeEventListener('devicemotion', processMotion);
-        startBtn.disabled = false; startBtn.innerText = "재측정";
+        startBtn.disabled = false; startBtn.innerText = "측정 시작";
         analyze();
     }
 
