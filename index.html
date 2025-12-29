@@ -25,19 +25,22 @@
         .menu-close { position: absolute; top: 20px; left: 20px; font-size: 1.2rem; cursor: pointer; }
 
         /* 버튼 및 리스트 */
-        button { background: var(--accent); color: white; border: none; padding: 15px; font-size: 1.1rem; border-radius: 12px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
+        button { background: var(--accent); color: white; border: none; padding: 15px; font-size: 1.1rem; border-radius: 12px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; transition: 0.3s; }
         button:disabled { background: #bdc3c7; }
+        button.measuring { background: var(--danger); }
+        button.retry { background: var(--success); }
+        
         input { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 10px; }
         .item-list { list-style: none; padding: 0; margin-top: 20px; }
         .item-list li { background: #fff; padding: 16px; border-radius: 14px; margin-bottom: 12px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        .delete-btn { color: var(--danger); font-size: 1.2rem; cursor: pointer; padding: 5px; }
+        .delete-btn { color: var(--danger); font-size: 1.2rem; cursor: pointer; padding: 5px; margin-left: 10px; }
 
         /* 결과 UI */
         .hz-display { font-size: 3.8rem; font-weight: 900; margin: 15px 0; text-align: center; }
         .prob-box { font-weight: bold; padding: 12px; border-radius: 14px; background: #f8f9fa; margin-bottom: 10px; text-align: center; transition: 0.3s; }
         .chart-container { height: 160px; margin-top: 15px; }
         #noiseAlert { display: none; background: var(--warning); color: white; padding: 10px; text-align: center; border-radius: 10px; margin-bottom: 10px; }
-        #status { font-size: 0.95rem; text-align: center; min-height: 3em; line-height: 1.5; }
+        #status { font-size: 0.95rem; text-align: center; min-height: 3em; line-height: 1.5; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -100,15 +103,14 @@
 </div>
 
 <script>
-    let currentUser = null, selectedSubject = null, isMeasuring = false, isLoggingIn = false;
-    let accelData = [], chart;
+    let currentUser = null, selectedSubject = null, isMeasuring = false;
+    let accelData = [], chart, countdownInterval, measureInterval;
 
-    // --- 네비게이션 ---
+    // --- 화면 제어 ---
     function showView(viewId) {
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
         document.getElementById(viewId).classList.add('active');
         document.getElementById('menuBtn').style.display = (viewId === 'loginView') ? 'none' : 'flex';
-        // 대상자가 선택된 상태라면 '측정 화면으로' 메뉴 표시
         document.getElementById('backToMeasureItem').style.display = selectedSubject ? 'block' : 'none';
         closeMenu();
     }
@@ -118,18 +120,16 @@
 
     // --- 인증 ---
     async function login() {
-        if (isLoggingIn) return;
-        isLoggingIn = true;
         const btn = document.getElementById("loginBtnMain");
         btn.disabled = true; btn.innerText = "로그인 중...";
         try { await auth.signInWithPopup(provider); }
         catch (err) { if (err.code !== 'auth/cancelled-popup-request') alert(err.message); }
-        finally { isLoggingIn = false; btn.disabled = false; btn.innerText = "구글로 시작하기"; }
+        finally { btn.disabled = false; btn.innerText = "구글로 시작하기"; }
     }
     function logout() { if(confirm("로그아웃 하시겠습니까?")) auth.signOut().then(() => location.reload()); }
     auth.onAuthStateChanged(user => { if (user) { currentUser = user; goToSubjectList(); } else { showView('loginView'); } });
 
-    // --- 대상자 관리 (삭제 기능 포함) ---
+    // --- 대상자 관리 ---
     async function addSubject() {
         const name = document.getElementById('newSubjectName').value.trim();
         if (!name) return;
@@ -145,12 +145,12 @@
             const sub = doc.data();
             const li = document.createElement('li');
             li.innerHTML = `<div onclick="startSession('${doc.id}', '${sub.name}')" style="flex:1; cursor:pointer;"><strong>${sub.name}</strong></div>
-                            <div class="delete-btn" onclick="deleteSubject('${doc.id}')">🗑️</div>`;
+                            <div class="delete-btn" onclick="deleteSubject('${doc.id}')">🗑️ 삭제</div>`;
             list.appendChild(li);
         });
     }
     async function deleteSubject(id) {
-        if(confirm("이 대상자를 삭제하시겠습니까? 관련 데이터는 유지됩니다.")) {
+        if(confirm("이 대상자를 삭제하시겠습니까?")) {
             await db.collection('subjects').doc(id).delete();
             loadSubjects();
         }
@@ -162,13 +162,13 @@
         initChart();
     }
 
-    // --- 측정 및 분석 로직 ---
+    // --- 차트 및 측정 로직 ---
     function initChart() {
         if(chart) chart.destroy();
         const ctx = document.getElementById('tremorChart').getContext('2d');
         chart = new Chart(ctx, {
             type: 'line',
-            data: { labels: [], datasets: [{ label: '진동', data: [], borderColor: '#3498db', borderWidth: 2, fill: false, pointRadius: 0 }] },
+            data: { labels: [], datasets: [{ label: '강도', data: [], borderColor: '#3498db', borderWidth: 2, fill: false, pointRadius: 0 }] },
             options: { responsive: true, maintainAspectRatio: false, scales: { x: { display: false }, y: { min: 0, max: 8 } }, animation: false }
         });
     }
@@ -180,30 +180,41 @@
         } else { runCountdown(); }
     });
 
-    // 1단계: 자세 준비 (5초) - 카운트다운 수정
+    // 1단계: 준비 카운트다운
     function runCountdown() {
         let timeLeft = 5;
         startBtn.disabled = true;
+        startBtn.classList.remove('retry');
         document.getElementById('status').innerText = "준비: 손을 편안히 하고 기다리세요.";
-        document.getElementById('probBox').innerText = "분석 대기 중...";
+        document.getElementById('probBox').innerText = "분석 중...";
         document.getElementById('probBox').style.background = "#f8f9fa";
         document.getElementById('probBox').style.color = "var(--primary)";
 
-        const timer = setInterval(() => {
+        countdownInterval = setInterval(() => {
             startBtn.innerText = `자세 준비 중... ${timeLeft}s`;
-            if (timeLeft-- <= 0) { clearInterval(timer); startMeasuring(); }
+            if (timeLeft-- <= 0) {
+                clearInterval(countdownInterval);
+                startMeasuring();
+            }
         }, 1000);
     }
 
-    // 2단계: 실제 측정 (5초) - 카운트다운 시각화
+    // 2단계: 실제 데이터 측정
     function startMeasuring() {
         isMeasuring = true; accelData = [];
         chart.data.labels = []; chart.data.datasets[0].data = [];
-        let measureTimeLeft = 5;
+        startBtn.classList.add('measuring');
         
-        const measureTimer = setInterval(() => {
-            startBtn.innerText = `측정 중... ${measureTimeLeft}s`;
-            if (measureTimeLeft-- <= 0) { clearInterval(measureTimer); }
+        let mTimeLeft = 5;
+        startBtn.innerText = `측정 중... ${mTimeLeft}s`; // 즉시 표시
+
+        measureInterval = setInterval(() => {
+            mTimeLeft--;
+            if (mTimeLeft >= 0) {
+                startBtn.innerText = `측정 중... ${mTimeLeft}s`;
+            } else {
+                clearInterval(measureInterval);
+            }
         }, 1000);
 
         window.addEventListener('devicemotion', processMotion);
@@ -223,14 +234,21 @@
         }
     }
 
+    // 3단계: 측정 종료 및 UI 업데이트
     function stopMeasuring() {
         isMeasuring = false;
+        clearInterval(measureInterval); // 타이머 강제 종료
         window.removeEventListener('devicemotion', processMotion);
-        startBtn.disabled = false; startBtn.innerText = "재측정";
+        
+        startBtn.classList.remove('measuring');
+        startBtn.classList.add('retry');
+        startBtn.disabled = false;
+        startBtn.innerText = "재측정"; // 텍스트 변경
+        
         analyze();
     }
 
-    // 3단계: 상세 분석 로직 복구
+    // 4단계: 분석 로직
     async function analyze() {
         const n = accelData.length;
         if (n === 0) return;
@@ -245,7 +263,6 @@
         const hz = (peaks / 5).toFixed(1);
         const avgAmp = (ampSum / (peaks || 1)).toFixed(2);
         
-        // 피로도 확률 계산
         let fatigueProb = 0;
         if (hz >= 3.5 && hz <= 6.5) fatigueProb += 50; 
         else if (hz > 6.5 && hz <= 12) fatigueProb += 30; 
@@ -253,7 +270,6 @@
         if (avgAmp > 1.5) fatigueProb += 30;
         fatigueProb = Math.min(fatigueProb, 100);
 
-        // UI 업데이트
         const probBox = document.getElementById('probBox');
         const statusDiv = document.getElementById('status');
         document.getElementById('result').innerHTML = `${hz}<span style="font-size:1.5rem"> Hz</span>`;
