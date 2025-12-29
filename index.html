@@ -2,35 +2,30 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>OT Tremor Guard Pro v3.2</title>
+
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#3498db">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-    <script>
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
-            .then(reg => console.log('Service Worker 등록 성공!', reg))
-            .catch(err => console.log('Service Worker 등록 실패:', err));
-        });
-    }
-    </script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="config.js"></script>
+    
     <style>
         :root { --primary: #2c3e50; --accent: #3498db; --danger: #e74c3c; --warning: #f39c12; --success: #27ae60; --light: #f4f7f9; }
-        body { font-family: 'Pretendard', sans-serif; background: var(--light); color: var(--primary); margin: 0; padding: 0; overflow-x: hidden; }
+        body { font-family: 'Pretendard', sans-serif; background: var(--light); color: var(--primary); margin: 0; padding: 0; overflow-x: hidden; -webkit-tap-highlight-color: transparent; }
         .container { max-width: 450px; margin: auto; padding: 20px; box-sizing: border-box; min-height: 100vh; position: relative; }
         .card { background: white; border-radius: 24px; padding: 25px; box-shadow: 0 12px 40px rgba(0,0,0,0.1); position: relative; }
         .view { display: none; }
         .view.active { display: block; }
         
+        /* 메뉴 */
         .menu-btn { position: fixed; top: 20px; right: 20px; z-index: 1000; background: white; border-radius: 50%; width: 45px; height: 45px; display: none; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; font-size: 1.5rem; }
         .menu-overlay { position: fixed; top: 0; right: -100%; width: 280px; height: 100%; background: white; z-index: 1001; transition: 0.3s; box-shadow: -5px 0 15px rgba(0,0,0,0.1); padding: 70px 20px 20px 20px; box-sizing: border-box; }
         .menu-overlay.open { right: 0; }
@@ -44,8 +39,6 @@
         .item-list { list-style: none; padding: 0; margin-top: 20px; }
         .item-list li { background: #fff; padding: 16px; border-radius: 14px; margin-bottom: 12px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
         .action-btns { display: flex; gap: 15px; align-items: center; }
-        .hist-icon { color: var(--accent); cursor: pointer; font-size: 1.2rem; }
-        .del-icon { color: var(--danger); cursor: pointer; font-size: 1.2rem; }
 
         .hz-display { font-size: 3.8rem; font-weight: 900; margin: 15px 0; text-align: center; }
         .prob-box { font-weight: bold; padding: 12px; border-radius: 14px; background: #f8f9fa; margin-bottom: 10px; text-align: center; transition: 0.3s; }
@@ -58,7 +51,6 @@
 
 <div class="container">
     <div id="menuBtn" class="menu-btn" onclick="toggleMenu()">☰</div>
-
     <div id="menuOverlay" class="menu-overlay">
         <div class="menu-close" onclick="toggleMenu()">✕ 닫기</div>
         <div id="backToMeasureItem" class="menu-item" style="color: var(--accent); display:none;" onclick="showView('measureView')">🏠 현재 측정 화면으로</div>
@@ -110,6 +102,15 @@
 </div>
 
 <script>
+    // PWA 서비스 워커 등록 코드
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js').then(reg => {
+                console.log('SW Registered!', reg);
+            }).catch(err => console.log('SW Registration failed', err));
+        });
+    }
+
     let currentUser = null, selectedSubject = null, isMeasuring = false;
     let rawAccelData = [], chart, countdownInterval, measureInterval, startTime, endTime;
     let lastFilteredMag = 0; 
@@ -146,8 +147,8 @@
         snapshot.forEach(doc => {
             const sub = doc.data();
             list.innerHTML += `<li><div onclick="startSession('${doc.id}', '${sub.name}')" style="flex:1; cursor:pointer;"><strong>${sub.name}</strong></div>
-                               <div class="action-btns"><span class="hist-icon" onclick="showHistory('${doc.id}')">📊</span>
-                               <span class="del-icon" onclick="deleteSubject('${doc.id}')">🗑️</span></div></li>`;
+                               <div class="action-btns"><span style="color:var(--accent); cursor:pointer;" onclick="showHistory('${doc.id}')">📊</span>
+                               <span style="color:var(--danger); cursor:pointer;" onclick="deleteSubject('${doc.id}')">🗑️</span></div></li>`;
             filter.innerHTML += `<option value="${doc.id}">${sub.name}</option>`;
         });
     }
@@ -247,7 +248,6 @@
         const axes = { X: (ampX/peaks || 0).toFixed(2), Y: (ampY/peaks || 0).toFixed(2), Z: (ampZ/peaks || 0).toFixed(2) };
         const domAxis = Object.keys(axes).reduce((a, b) => axes[a] > axes[b] ? a : b);
 
-        // --- 분석 결과 화면 업데이트 (이 부분이 수정됨) ---
         let prob = 0;
         if (hz >= 3.5 && hz <= 6.5) prob += 50; else if (hz > 6.5 && hz <= 12) prob += 30;
         if (avgAmp > 0.8) prob += 20; if (avgAmp > 1.5) prob += 30;
@@ -257,15 +257,11 @@
         document.getElementById('result').innerHTML = `${hz}<span> Hz</span>`;
         probBox.innerText = `피로도 확률: ${prob}%`;
         
-        if (prob >= 80) {
-            probBox.style.background = "var(--danger)"; probBox.style.color = "white";
-        } else if (prob >= 40) {
-            probBox.style.background = "var(--warning)"; probBox.style.color = "white";
-        } else {
-            probBox.style.background = "var(--success)"; probBox.style.color = "white";
-        }
+        if (prob >= 80) { probBox.style.background = "var(--danger)"; probBox.style.color = "white"; }
+        else if (prob >= 40) { probBox.style.background = "var(--warning)"; probBox.style.color = "white"; }
+        else { probBox.style.background = "var(--success)"; probBox.style.color = "white"; }
 
-        document.getElementById('status').innerText = `주요 방향: ${domAxis}축 (진폭: ${axes[domAxis]})`;
+        document.getElementById('status').innerText = `방향: ${domAxis}축 (진폭: ${axes[domAxis]})`;
         saveData(hz, avgAmp, domAxis, axes);
     }
 
@@ -277,7 +273,6 @@
         });
     }
 
-    let currentHistoryData = [];
     async function showHistory(targetId = null) {
         showView('historyView');
         const filter = document.getElementById('subjectFilter');
@@ -286,21 +281,25 @@
         if (targetId && targetId !== 'all') query = query.where('subjectId', '==', targetId);
         const snap = await query.get();
         const tbody = document.getElementById('historyBody');
-        tbody.innerHTML = ''; currentHistoryData = [];
-        snap.forEach(doc => currentHistoryData.push(doc.data()));
-        currentHistoryData.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-        currentHistoryData.forEach(d => {
+        tbody.innerHTML = '';
+        let dataList = [];
+        snap.forEach(doc => dataList.push(doc.data()));
+        dataList.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+        dataList.forEach(d => {
             const date = d.timestamp ? d.timestamp.toDate().toLocaleDateString() : '-';
             tbody.innerHTML += `<tr><td>${d.subjectName}</td><td>${d.hz}</td><td>${d.amp}</td><td>${d.direction}</td><td>${date}</td></tr>`;
         });
     }
+
     function filterHistoryBySelect() { showHistory(document.getElementById('subjectFilter').value); }
     function exportToCSV() {
-        if (currentHistoryData.length === 0) return alert("데이터가 없습니다.");
         let csv = "\uFEFF이름,주파수(Hz),평균진폭,주요방향,진폭X,진폭Y,진폭Z,날짜\n";
-        currentHistoryData.forEach(d => {
-            csv += `${d.subjectName},${d.hz},${d.amp},${d.direction},${d.ampX},${d.ampY},${d.ampZ},${d.timestamp.toDate().toLocaleString()}\n`;
-        });
+        const tbody = document.getElementById('historyBody');
+        // 현재 화면에 표시된 테이블 데이터만 추출
+        for (let row of tbody.rows) {
+            let cells = Array.from(row.cells).map(c => c.innerText);
+            csv += cells.join(",") + "\n";
+        }
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
