@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OT Tremor Guard Pro v3.1</title>
+    <title>OT Tremor Guard Pro v3.2</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -17,30 +17,26 @@
         .view { display: none; }
         .view.active { display: block; }
         
-        /* 메뉴 버튼 스타일 */
         .menu-btn { position: fixed; top: 20px; right: 20px; z-index: 1000; background: white; border-radius: 50%; width: 45px; height: 45px; display: none; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; font-size: 1.5rem; }
         .menu-overlay { position: fixed; top: 0; right: -100%; width: 280px; height: 100%; background: white; z-index: 1001; transition: 0.3s; box-shadow: -5px 0 15px rgba(0,0,0,0.1); padding: 70px 20px 20px 20px; box-sizing: border-box; }
         .menu-overlay.open { right: 0; }
         .menu-item { padding: 18px; border-bottom: 1px solid #eee; cursor: pointer; font-weight: bold; }
         .menu-close { position: absolute; top: 20px; left: 20px; font-size: 1.2rem; cursor: pointer; }
 
-        /* 공통 요소 */
         button { background: var(--accent); color: white; border: none; padding: 15px; font-size: 1.1rem; border-radius: 12px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
         button:disabled { background: #bdc3c7; }
         input, select { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 10px; font-size: 1rem; }
         
-        /* 리스트 스타일 */
         .item-list { list-style: none; padding: 0; margin-top: 20px; }
-        .item-list li { background: #fff; padding: 16px; border-radius: 14px; margin-bottom: 12px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
+        .item-list li { background: #fff; padding: 16px; border-radius: 14px; margin-bottom: 12px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
         .action-btns { display: flex; gap: 15px; align-items: center; }
         .hist-icon { color: var(--accent); cursor: pointer; font-size: 1.2rem; }
         .del-icon { color: var(--danger); cursor: pointer; font-size: 1.2rem; }
 
-        /* 측정 결과 UI */
         .hz-display { font-size: 3.8rem; font-weight: 900; margin: 15px 0; text-align: center; }
-        .prob-box { font-weight: bold; padding: 12px; border-radius: 14px; background: #f8f9fa; margin-bottom: 10px; text-align: center; }
+        .prob-box { font-weight: bold; padding: 12px; border-radius: 14px; background: #f8f9fa; margin-bottom: 10px; text-align: center; transition: 0.3s; }
         .chart-container { height: 160px; margin-top: 15px; }
-        #status { font-size: 0.9rem; text-align: center; color: #666; margin-top: 10px; }
+        #status { font-size: 0.9rem; text-align: center; color: #666; margin-top: 10px; min-height: 2.5em; }
         .export-btn { background: var(--success); margin-top: 15px; font-size: 0.9rem; padding: 10px; }
     </style>
 </head>
@@ -59,8 +55,7 @@
 
     <div id="loginView" class="view active">
         <div class="card" style="text-align: center; margin-top: 60px;">
-            <h1>Tremor Guard <span style="font-size: 0.5em; vertical-align: middle;">PRO</span></h1>
-            <p>전문가용 진전 분석 솔루션</p>
+            <h1>Tremor Guard <span>PRO</span></h1>
             <button onclick="login()">구글로 시작하기</button>
         </div>
     </div>
@@ -87,9 +82,7 @@
 
     <div id="historyView" class="view">
         <div class="card">
-            <div style="display: flex; gap:10px; align-items: center; margin-bottom:10px;">
-                <select id="subjectFilter" onchange="filterHistoryBySelect()" style="margin-bottom:0;"></select>
-            </div>
+            <select id="subjectFilter" onchange="filterHistoryBySelect()"></select>
             <button class="export-btn" onclick="exportToCSV()">📂 엑셀(CSV) 내보내기</button>
             <div style="overflow-x: auto; margin-top:15px;">
                 <table style="width:100%; border-collapse:collapse; font-size:0.75rem;">
@@ -106,20 +99,12 @@
     let currentUser = null, selectedSubject = null, isMeasuring = false;
     let rawAccelData = [], chart, countdownInterval, measureInterval, startTime, endTime;
     let lastFilteredMag = 0; 
-    const alpha = 0.7; // LPF 계수
+    const alpha = 0.7;
 
-    // --- 화면 제어 (수정됨: subjectView에서도 메뉴 숨김) ---
     function showView(viewId) {
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
         document.getElementById(viewId).classList.add('active');
-        
-        // 로그인 화면(loginView)과 대상자 선택 화면(subjectView)에서는 메뉴 버튼을 숨깁니다.
-        if (viewId === 'loginView' || viewId === 'subjectView') {
-            document.getElementById('menuBtn').style.display = 'none';
-        } else {
-            document.getElementById('menuBtn').style.display = 'flex';
-        }
-        
+        document.getElementById('menuBtn').style.display = (viewId === 'loginView' || viewId === 'subjectView') ? 'none' : 'flex';
         document.getElementById('backToMeasureItem').style.display = selectedSubject ? 'block' : 'none';
         closeMenu();
     }
@@ -128,12 +113,10 @@
     function closeMenu() { document.getElementById('menuOverlay').classList.remove('open'); }
     function goToSubjectList() { showView('subjectView'); loadSubjects(); }
 
-    // --- 인증 로직 ---
     async function login() { await auth.signInWithPopup(provider).catch(console.error); }
     function logout() { auth.signOut().then(() => location.reload()); }
     auth.onAuthStateChanged(user => { if (user) { currentUser = user; goToSubjectList(); } else { showView('loginView'); } });
 
-    // --- 대상자 관리 (수정됨: 삭제 버튼 복구) ---
     async function addSubject() {
         const name = document.getElementById('newSubjectName').value.trim();
         if (!name) return;
@@ -146,28 +129,17 @@
         const list = document.getElementById('subjectList');
         const filter = document.getElementById('subjectFilter');
         list.innerHTML = ''; filter.innerHTML = '<option value="all">모든 대상자</option>';
-        
         snapshot.forEach(doc => {
             const sub = doc.data();
-            const li = document.createElement('li');
-            li.innerHTML = `
-                <div onclick="startSession('${doc.id}', '${sub.name}')" style="flex:1; cursor:pointer;">
-                    <strong>${sub.name}</strong>
-                </div>
-                <div class="action-btns">
-                    <span class="hist-icon" onclick="showHistory('${doc.id}')" title="이력보기">📊</span>
-                    <span class="del-icon" onclick="deleteSubject('${doc.id}')" title="삭제">🗑️</span>
-                </div>`;
-            list.appendChild(li);
+            list.innerHTML += `<li><div onclick="startSession('${doc.id}', '${sub.name}')" style="flex:1; cursor:pointer;"><strong>${sub.name}</strong></div>
+                               <div class="action-btns"><span class="hist-icon" onclick="showHistory('${doc.id}')">📊</span>
+                               <span class="del-icon" onclick="deleteSubject('${doc.id}')">🗑️</span></div></li>`;
             filter.innerHTML += `<option value="${doc.id}">${sub.name}</option>`;
         });
     }
 
     async function deleteSubject(id) {
-        if(confirm("이 대상자를 삭제하시겠습니까? (측정 데이터는 보존됩니다)")) {
-            await db.collection('subjects').doc(id).delete();
-            loadSubjects();
-        }
+        if(confirm("대상자를 삭제하시겠습니까?")) { await db.collection('subjects').doc(id).delete(); loadSubjects(); }
     }
 
     function startSession(id, name) {
@@ -176,7 +148,6 @@
         showView('measureView'); initChart();
     }
 
-    // --- 측정 및 분석 로직 (이전과 동일) ---
     function initChart() {
         if(chart) chart.destroy();
         const ctx = document.getElementById('tremorChart').getContext('2d');
@@ -196,6 +167,9 @@
 
     function runCountdown() {
         let timeLeft = 5; startBtn.disabled = true;
+        document.getElementById('probBox').innerText = "분석 대기 중...";
+        document.getElementById('probBox').style.background = "#f8f9fa";
+        document.getElementById('probBox').style.color = "var(--primary)";
         countdownInterval = setInterval(() => {
             startBtn.innerText = `준비 중... ${timeLeft}s`;
             if (timeLeft-- <= 0) { clearInterval(countdownInterval); startMeasuring(); }
@@ -249,9 +223,7 @@
                 const next = rawAccelData[i+1].mag - meanMag;
                 if (curr > 0.4 && curr > prev && curr > next) {
                     peaks++; ampSum += curr;
-                    ampX += Math.abs(d.x - meanX);
-                    ampY += Math.abs(d.y - meanY);
-                    ampZ += Math.abs(d.z - meanZ);
+                    ampX += Math.abs(d.x - meanX); ampY += Math.abs(d.y - meanY); ampZ += Math.abs(d.z - meanZ);
                 }
             }
         });
@@ -261,9 +233,25 @@
         const axes = { X: (ampX/peaks || 0).toFixed(2), Y: (ampY/peaks || 0).toFixed(2), Z: (ampZ/peaks || 0).toFixed(2) };
         const domAxis = Object.keys(axes).reduce((a, b) => axes[a] > axes[b] ? a : b);
 
+        // --- 분석 결과 화면 업데이트 (이 부분이 수정됨) ---
+        let prob = 0;
+        if (hz >= 3.5 && hz <= 6.5) prob += 50; else if (hz > 6.5 && hz <= 12) prob += 30;
+        if (avgAmp > 0.8) prob += 20; if (avgAmp > 1.5) prob += 30;
+        prob = Math.min(prob, 100);
+
+        const probBox = document.getElementById('probBox');
         document.getElementById('result').innerHTML = `${hz}<span> Hz</span>`;
-        document.getElementById('status').innerText = `주요 방향: ${domAxis}축 (강도: ${axes[domAxis]})`;
+        probBox.innerText = `피로도 확률: ${prob}%`;
         
+        if (prob >= 80) {
+            probBox.style.background = "var(--danger)"; probBox.style.color = "white";
+        } else if (prob >= 40) {
+            probBox.style.background = "var(--warning)"; probBox.style.color = "white";
+        } else {
+            probBox.style.background = "var(--success)"; probBox.style.color = "white";
+        }
+
+        document.getElementById('status').innerText = `주요 방향: ${domAxis}축 (진폭: ${axes[domAxis]})`;
         saveData(hz, avgAmp, domAxis, axes);
     }
 
@@ -275,7 +263,6 @@
         });
     }
 
-    // --- 이력 필터링 및 CSV 내보내기 ---
     let currentHistoryData = [];
     async function showHistory(targetId = null) {
         showView('historyView');
@@ -283,27 +270,22 @@
         filter.value = targetId || 'all';
         let query = db.collection('measurements').where('uid', '==', currentUser.uid);
         if (targetId && targetId !== 'all') query = query.where('subjectId', '==', targetId);
-        
         const snap = await query.get();
         const tbody = document.getElementById('historyBody');
         tbody.innerHTML = ''; currentHistoryData = [];
         snap.forEach(doc => currentHistoryData.push(doc.data()));
         currentHistoryData.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-
         currentHistoryData.forEach(d => {
             const date = d.timestamp ? d.timestamp.toDate().toLocaleDateString() : '-';
             tbody.innerHTML += `<tr><td>${d.subjectName}</td><td>${d.hz}</td><td>${d.amp}</td><td>${d.direction}</td><td>${date}</td></tr>`;
         });
     }
-
     function filterHistoryBySelect() { showHistory(document.getElementById('subjectFilter').value); }
-
     function exportToCSV() {
-        if (currentHistoryData.length === 0) return alert("내보낼 데이터가 없습니다.");
+        if (currentHistoryData.length === 0) return alert("데이터가 없습니다.");
         let csv = "\uFEFF이름,주파수(Hz),평균진폭,주요방향,진폭X,진폭Y,진폭Z,날짜\n";
         currentHistoryData.forEach(d => {
-            const date = d.timestamp ? d.timestamp.toDate().toLocaleString() : '-';
-            csv += `${d.subjectName},${d.hz},${d.amp},${d.direction},${d.ampX},${d.ampY},${d.ampZ},${date}\n`;
+            csv += `${d.subjectName},${d.hz},${d.amp},${d.direction},${d.ampX},${d.ampY},${d.ampZ},${d.timestamp.toDate().toLocaleString()}\n`;
         });
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
