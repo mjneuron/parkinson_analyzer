@@ -61,7 +61,7 @@
         <div class="card" style="text-align: center; margin-top: 60px;">
             <h1 style="margin-bottom:10px;">Tremor Guard</h1>
             <p style="color:#7f8c8d; margin-bottom:30px;">Professional Analysis Tool</p>
-            <button onclick="login()">구글로 시작하기</button>
+            <button id="loginBtnMain" onclick="login()">구글로 시작하기</button>
         </div>
     </div>
 
@@ -128,26 +128,30 @@
     function closeMenu() { document.getElementById('menuOverlay').classList.remove('open'); }
     function goToSubjectList() { showView('subjectView'); loadSubjects(); }
 
-    // --- Firebase 인증 (리다이렉트 방식 + 중복 클릭 방지) ---
-    function login() {
-        if (isLoggingIn) return;
+    // --- Firebase 인증 (팝업 방식 + 견고한 에러 처리) ---
+    async function login() {
+        if (isLoggingIn) return; // 중복 클릭 방지
         
         isLoggingIn = true;
-        const loginBtn = document.querySelector("#loginView button");
-        if (loginBtn) {
-            loginBtn.disabled = true;
-            loginBtn.innerText = "로그인 시도 중...";
-        }
+        const loginBtn = document.getElementById("loginBtnMain");
+        loginBtn.disabled = true;
+        loginBtn.innerText = "로그인 중...";
 
-        auth.signInWithRedirect(provider).catch(err => {
-            console.error(err);
-            alert("로그인 중 오류가 발생했습니다: " + err.message);
-            isLoggingIn = false;
-            if (loginBtn) {
-                loginBtn.disabled = false;
-                loginBtn.innerText = "구글로 시작하기";
+        try {
+            // 팝업 방식을 사용하여 리다이렉트 루프 문제 해결
+            await auth.signInWithPopup(provider);
+            // 성공 시 onAuthStateChanged가 감지하여 화면을 넘깁니다.
+        } catch (err) {
+            console.error("Login Error:", err);
+            // 팝업 충돌이나 취소 에러가 아닐 때만 알림 표시
+            if (err.code !== 'auth/cancelled-popup-request') {
+                alert("로그인 중 오류가 발생했습니다: " + err.message);
             }
-        });
+        } finally {
+            isLoggingIn = false;
+            loginBtn.disabled = false;
+            loginBtn.innerText = "구글로 시작하기";
+        }
     }
 
     function logout() {
@@ -156,16 +160,14 @@
         }
     }
 
-    // 인증 상태 변경 감지
+    // 인증 상태 변경 감지 (앱의 심장부)
     auth.onAuthStateChanged(user => {
-        console.log("인증 상태 변경됨:", user); // 이 로그가 찍히는지 확인하세요.
+        console.log("인증 상태 확인:", user ? "로그인됨" : "로그아웃됨");
         if (user) {
-            console.log("로그인 성공:", user.displayName);
             currentUser = user;
-            goToSubjectList(); // 성공 시 대상자 목록으로 이동
+            goToSubjectList(); // 로그인 성공 시 대상자 목록 화면으로 전환
         } else {
-            console.log("현재 로그아웃 상태");
-            showView('loginView');
+            showView('loginView'); // 로그아웃 시 로그인 화면으로 전환
         }
     });
 
@@ -182,10 +184,10 @@
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             nameInput.value = '';
-            loadSubjects();
+            loadSubjects(); // 추가 후 목록 즉시 갱신
         } catch (error) {
             console.error(error);
-            alert("데이터 저장 실패: Firestore 규칙 또는 인덱스를 확인하세요.");
+            alert("데이터 저장 실패: Firestore 권한 설정을 확인하세요.");
         }
     }
 
@@ -204,7 +206,7 @@
                 li.onclick = () => startSession(doc.id, sub.name);
                 list.appendChild(li);
             });
-        } catch (error) { console.error(error); }
+        } catch (error) { console.error("Load Error:", error); }
     }
 
     function startSession(id, name) {
@@ -214,7 +216,7 @@
         initChart();
     }
 
-    // --- 진전 측정 로직 ---
+    // --- 진전 측정 로직 (가속도계 활용) ---
     function initChart() {
         if(chart) chart.destroy();
         const ctx = document.getElementById('tremorChart').getContext('2d');
@@ -227,8 +229,12 @@
 
     const startBtn = document.getElementById('startBtn');
     startBtn.addEventListener('click', () => {
+        // iOS 권한 요청 처리
         if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-            DeviceMotionEvent.requestPermission().then(state => { if(state === 'granted') runCountdown(); });
+            DeviceMotionEvent.requestPermission().then(state => { 
+                if(state === 'granted') runCountdown(); 
+                else alert("가속도계 권한이 필요합니다.");
+            });
         } else { runCountdown(); }
     });
 
@@ -253,8 +259,10 @@
         const acc = event.acceleration;
         if (!acc || !acc.x) return;
         const mag = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
+        
         if (mag > 13.0) document.getElementById('noiseAlert').style.display = 'block';
         else setTimeout(() => document.getElementById('noiseAlert').style.display = 'none', 500);
+
         accelData.push(mag);
         if (accelData.length % 5 === 0) {
             chart.data.labels.push("");
@@ -291,7 +299,7 @@
 
         document.getElementById('result').innerHTML = `${hz}<span> Hz</span>`;
         document.getElementById('probBox').innerText = `피로도 확률: ${prob}%`;
-        saveData(hz, prob);
+        saveData(hz, prob); // 분석 결과 DB 저장
     }
 
     async function saveData(hz, prob) {
@@ -322,7 +330,7 @@
                 tr.innerHTML = `<td style="padding:12px;">${data.subjectName}</td><td>${data.hz}</td><td>${data.prob}%</td><td>${date}</td>`;
                 tbody.appendChild(tr);
             });
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("History Load Error:", e); }
     }
 </script>
 
