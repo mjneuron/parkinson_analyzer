@@ -12,46 +12,41 @@
     <style>
         :root { --primary: #2c3e50; --accent: #3498db; --danger: #e74c3c; --warning: #f39c12; --success: #27ae60; --light: #f4f7f9; }
         body { font-family: 'Pretendard', sans-serif; background: var(--light); color: var(--primary); margin: 0; padding: 0; overflow-x: hidden; }
-        
         .container { max-width: 450px; margin: auto; padding: 20px; box-sizing: border-box; min-height: 100vh; position: relative; }
         .card { background: white; border-radius: 24px; padding: 25px; box-shadow: 0 12px 40px rgba(0,0,0,0.1); position: relative; }
-        
-        /* 화면 제어 */
         .view { display: none; }
         .view.active { display: block; }
 
-        /* 메뉴 버튼 (우측 상단 고정) */
+        /* 메뉴 스타일 */
         .menu-btn { position: fixed; top: 20px; right: 20px; z-index: 1000; background: white; border-radius: 50%; width: 45px; height: 45px; display: none; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer; font-size: 1.5rem; }
-        
-        /* 메뉴 오버레이 */
-        .menu-overlay { position: fixed; top: 0; right: -100%; width: 260px; height: 100%; background: white; z-index: 1001; transition: 0.3s; box-shadow: -5px 0 15px rgba(0,0,0,0.1); padding: 70px 20px 20px 20px; box-sizing: border-box; }
+        .menu-overlay { position: fixed; top: 0; right: -100%; width: 280px; height: 100%; background: white; z-index: 1001; transition: 0.3s; box-shadow: -5px 0 15px rgba(0,0,0,0.1); padding: 70px 20px 20px 20px; box-sizing: border-box; }
         .menu-overlay.open { right: 0; }
-        .menu-item { padding: 18px; border-bottom: 1px solid #eee; cursor: pointer; font-weight: bold; color: var(--primary); }
-        .menu-item:active { background-color: #f0f0f0; }
-        .menu-close { position: absolute; top: 20px; left: 20px; font-size: 1.2rem; cursor: pointer; color: #777; }
+        .menu-item { padding: 18px; border-bottom: 1px solid #eee; cursor: pointer; font-weight: bold; }
+        .menu-close { position: absolute; top: 20px; left: 20px; font-size: 1.2rem; cursor: pointer; }
 
-        /* 공통 버튼 및 입력창 */
-        button { background: var(--accent); color: white; border: none; padding: 15px; font-size: 1.1rem; border-radius: 12px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; transition: 0.2s; }
-        button:disabled { background: #bdc3c7; cursor: not-allowed; }
-        input { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 10px; font-size: 1rem; }
-        
-        .item-list { list-style: none; padding: 0; margin-top: 20px; max-height: 450px; overflow-y: auto; }
-        .item-list li { background: #fff; padding: 16px; border-radius: 14px; margin-bottom: 12px; cursor: pointer; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.03); }
+        /* 버튼 및 리스트 */
+        button { background: var(--accent); color: white; border: none; padding: 15px; font-size: 1.1rem; border-radius: 12px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
+        button:disabled { background: #bdc3c7; }
+        input { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #ddd; box-sizing: border-box; margin-bottom: 10px; }
+        .item-list { list-style: none; padding: 0; margin-top: 20px; }
+        .item-list li { background: #fff; padding: 16px; border-radius: 14px; margin-bottom: 12px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .delete-btn { color: var(--danger); font-size: 1.2rem; cursor: pointer; padding: 5px; }
 
-        /* 측정 UI */
-        .hz-display { font-size: 3.8rem; font-weight: 900; margin: 15px 0; text-align: center; color: var(--primary); }
-        .prob-box { font-weight: bold; padding: 12px; border-radius: 14px; background: #f8f9fa; margin-bottom: 10px; text-align: center; }
-        .chart-container { height: 180px; margin-top: 20px; background: #fff; border-radius: 12px; }
-        #noiseAlert { display: none; background: var(--warning); color: white; padding: 10px; font-size: 0.85rem; text-align: center; border-radius: 10px; margin-bottom: 10px; font-weight: bold; }
+        /* 결과 UI */
+        .hz-display { font-size: 3.8rem; font-weight: 900; margin: 15px 0; text-align: center; }
+        .prob-box { font-weight: bold; padding: 12px; border-radius: 14px; background: #f8f9fa; margin-bottom: 10px; text-align: center; transition: 0.3s; }
+        .chart-container { height: 160px; margin-top: 15px; }
+        #noiseAlert { display: none; background: var(--warning); color: white; padding: 10px; text-align: center; border-radius: 10px; margin-bottom: 10px; }
+        #status { font-size: 0.95rem; text-align: center; min-height: 3em; line-height: 1.5; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div id="menuBtn" class="menu-btn" onclick="toggleMenu()">☰</div>
-
     <div id="menuOverlay" class="menu-overlay">
         <div class="menu-close" onclick="toggleMenu()">✕ 닫기</div>
+        <div id="backToMeasureItem" class="menu-item" style="color: var(--accent); display:none;" onclick="showView('measureView')">🏠 현재 측정 화면으로</div>
         <div class="menu-item" onclick="showHistory()">📊 데이터 비교 테이블</div>
         <div class="menu-item" onclick="goToSubjectList()">👥 대상자 목록 (변경)</div>
         <div class="menu-item" style="color: var(--danger);" onclick="logout()">🏃 로그아웃</div>
@@ -59,8 +54,8 @@
 
     <div id="loginView" class="view active">
         <div class="card" style="text-align: center; margin-top: 60px;">
-            <h1 style="margin-bottom:10px;">Tremor Guard</h1>
-            <p style="color:#7f8c8d; margin-bottom:30px;">Professional Analysis Tool</p>
+            <h1>Tremor Guard</h1>
+            <p>AI 기반 진전 분석 솔루션</p>
             <button id="loginBtnMain" onclick="login()">구글로 시작하기</button>
         </div>
     </div>
@@ -76,13 +71,13 @@
 
     <div id="measureView" class="view">
         <div class="card">
-            <div id="noiseAlert">⚠️ 움직임이 감지되었습니다!</div>
-            <h3 id="currentSubjectTitle" style="margin-top:0; color:var(--accent);">대상자: </h3>
+            <div id="noiseAlert">⚠️ 노이즈 감지 (움직임 주의)</div>
+            <h3 id="currentSubjectTitle" style="margin-top:0;">대상자: </h3>
             <button id="startBtn">측정 시작</button>
             <div class="result-area">
                 <div class="hz-display" id="result">0.0<span style="font-size:1.5rem"> Hz</span></div>
                 <div id="probBox" class="prob-box">분석 대기 중...</div>
-                <div id="status" style="font-size:0.9rem; text-align:center; min-height:2em; color:#7f8c8d;"></div>
+                <div id="status"></div>
             </div>
             <div class="chart-container">
                 <canvas id="tremorChart"></canvas>
@@ -94,121 +89,72 @@
         <div class="card">
             <h3>측정 이력 데이터</h3>
             <div style="overflow-x: auto;">
-                <table style="width:100%; border-collapse:collapse; font-size:0.85rem; margin-top:10px;">
-                    <thead>
-                        <tr style="border-bottom:2px solid #eee; background:#f8f9fa;">
-                            <th style="padding:12px;">대상자</th><th style="padding:12px;">Hz</th><th style="padding:12px;">확률</th><th style="padding:12px;">날짜</th>
-                        </tr>
-                    </thead>
+                <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                    <thead><tr style="background:#f8f9fa;"><th style="padding:10px;">이름</th><th>Hz</th><th>확률</th><th>날짜</th></tr></thead>
                     <tbody id="historyBody" style="text-align:center;"></tbody>
                 </table>
             </div>
-            <button onclick="toggleMenu()" style="background:#f1f2f6; color:#2f3542; margin-top:20px;">메뉴 닫기</button>
+            <button onclick="toggleMenu()" style="background:#eee; color:#333; margin-top:20px;">메뉴 열기</button>
         </div>
     </div>
 </div>
 
 <script>
-    let currentUser = null;
-    let selectedSubject = null;
-    let isMeasuring = false;
-    let isLoggingIn = false;
-    let accelData = [];
-    let chart;
+    let currentUser = null, selectedSubject = null, isMeasuring = false, isLoggingIn = false;
+    let accelData = [], chart;
 
-    // --- 화면 제어 ---
+    // --- 네비게이션 ---
     function showView(viewId) {
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
         document.getElementById(viewId).classList.add('active');
         document.getElementById('menuBtn').style.display = (viewId === 'loginView') ? 'none' : 'flex';
+        // 대상자가 선택된 상태라면 '측정 화면으로' 메뉴 표시
+        document.getElementById('backToMeasureItem').style.display = selectedSubject ? 'block' : 'none';
         closeMenu();
     }
-
     function toggleMenu() { document.getElementById('menuOverlay').classList.toggle('open'); }
     function closeMenu() { document.getElementById('menuOverlay').classList.remove('open'); }
     function goToSubjectList() { showView('subjectView'); loadSubjects(); }
 
-    // --- Firebase 인증 (팝업 방식 + 견고한 에러 처리) ---
+    // --- 인증 ---
     async function login() {
-        if (isLoggingIn) return; // 중복 클릭 방지
-        
+        if (isLoggingIn) return;
         isLoggingIn = true;
-        const loginBtn = document.getElementById("loginBtnMain");
-        loginBtn.disabled = true;
-        loginBtn.innerText = "로그인 중...";
-
-        try {
-            // 팝업 방식을 사용하여 리다이렉트 루프 문제 해결
-            await auth.signInWithPopup(provider);
-            // 성공 시 onAuthStateChanged가 감지하여 화면을 넘깁니다.
-        } catch (err) {
-            console.error("Login Error:", err);
-            // 팝업 충돌이나 취소 에러가 아닐 때만 알림 표시
-            if (err.code !== 'auth/cancelled-popup-request') {
-                alert("로그인 중 오류가 발생했습니다: " + err.message);
-            }
-        } finally {
-            isLoggingIn = false;
-            loginBtn.disabled = false;
-            loginBtn.innerText = "구글로 시작하기";
-        }
+        const btn = document.getElementById("loginBtnMain");
+        btn.disabled = true; btn.innerText = "로그인 중...";
+        try { await auth.signInWithPopup(provider); }
+        catch (err) { if (err.code !== 'auth/cancelled-popup-request') alert(err.message); }
+        finally { isLoggingIn = false; btn.disabled = false; btn.innerText = "구글로 시작하기"; }
     }
+    function logout() { if(confirm("로그아웃 하시겠습니까?")) auth.signOut().then(() => location.reload()); }
+    auth.onAuthStateChanged(user => { if (user) { currentUser = user; goToSubjectList(); } else { showView('loginView'); } });
 
-    function logout() {
-        if(confirm("로그아웃 하시겠습니까?")) {
-            auth.signOut().then(() => { location.reload(); });
-        }
-    }
-
-    // 인증 상태 변경 감지 (앱의 심장부)
-    auth.onAuthStateChanged(user => {
-        console.log("인증 상태 확인:", user ? "로그인됨" : "로그아웃됨");
-        if (user) {
-            currentUser = user;
-            goToSubjectList(); // 로그인 성공 시 대상자 목록 화면으로 전환
-        } else {
-            showView('loginView'); // 로그아웃 시 로그인 화면으로 전환
-        }
-    });
-
-    // --- 대상자 관리 로직 ---
+    // --- 대상자 관리 (삭제 기능 포함) ---
     async function addSubject() {
-        const nameInput = document.getElementById('newSubjectName');
-        const name = nameInput.value.trim();
-        if (!name) return alert("대상자 성함을 입력해 주세요.");
-
-        try {
-            await db.collection('subjects').add({
-                uid: currentUser.uid,
-                name: name,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            nameInput.value = '';
-            loadSubjects(); // 추가 후 목록 즉시 갱신
-        } catch (error) {
-            console.error(error);
-            alert("데이터 저장 실패: Firestore 권한 설정을 확인하세요.");
+        const name = document.getElementById('newSubjectName').value.trim();
+        if (!name) return;
+        await db.collection('subjects').add({ uid: currentUser.uid, name, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+        document.getElementById('newSubjectName').value = '';
+        loadSubjects();
+    }
+    async function loadSubjects() {
+        const snapshot = await db.collection('subjects').where('uid', '==', currentUser.uid).get();
+        const list = document.getElementById('subjectList');
+        list.innerHTML = '';
+        snapshot.forEach(doc => {
+            const sub = doc.data();
+            const li = document.createElement('li');
+            li.innerHTML = `<div onclick="startSession('${doc.id}', '${sub.name}')" style="flex:1; cursor:pointer;"><strong>${sub.name}</strong></div>
+                            <div class="delete-btn" onclick="deleteSubject('${doc.id}')">🗑️</div>`;
+            list.appendChild(li);
+        });
+    }
+    async function deleteSubject(id) {
+        if(confirm("이 대상자를 삭제하시겠습니까? 관련 데이터는 유지됩니다.")) {
+            await db.collection('subjects').doc(id).delete();
+            loadSubjects();
         }
     }
-
-    async function loadSubjects() {
-        try {
-            const snapshot = await db.collection('subjects')
-                .where('uid', '==', currentUser.uid)
-                .get();
-            
-            const list = document.getElementById('subjectList');
-            list.innerHTML = '';
-            snapshot.forEach(doc => {
-                const sub = doc.data();
-                const li = document.createElement('li');
-                li.innerHTML = `<strong>${sub.name}</strong> <span style="font-size:0.8rem; color:var(--accent)">선택</span>`;
-                li.onclick = () => startSession(doc.id, sub.name);
-                list.appendChild(li);
-            });
-        } catch (error) { console.error("Load Error:", error); }
-    }
-
     function startSession(id, name) {
         selectedSubject = { id, name };
         document.getElementById('currentSubjectTitle').innerText = `대상자: ${name}`;
@@ -216,40 +162,50 @@
         initChart();
     }
 
-    // --- 진전 측정 로직 (가속도계 활용) ---
+    // --- 측정 및 분석 로직 ---
     function initChart() {
         if(chart) chart.destroy();
         const ctx = document.getElementById('tremorChart').getContext('2d');
         chart = new Chart(ctx, {
             type: 'line',
-            data: { labels: [], datasets: [{ label: '진동 강도', data: [], borderColor: '#3498db', borderWidth: 2, fill: false, pointRadius: 0 }] },
+            data: { labels: [], datasets: [{ label: '진동', data: [], borderColor: '#3498db', borderWidth: 2, fill: false, pointRadius: 0 }] },
             options: { responsive: true, maintainAspectRatio: false, scales: { x: { display: false }, y: { min: 0, max: 8 } }, animation: false }
         });
     }
 
     const startBtn = document.getElementById('startBtn');
     startBtn.addEventListener('click', () => {
-        // iOS 권한 요청 처리
         if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-            DeviceMotionEvent.requestPermission().then(state => { 
-                if(state === 'granted') runCountdown(); 
-                else alert("가속도계 권한이 필요합니다.");
-            });
+            DeviceMotionEvent.requestPermission().then(state => { if(state === 'granted') runCountdown(); });
         } else { runCountdown(); }
     });
 
+    // 1단계: 자세 준비 (5초) - 카운트다운 수정
     function runCountdown() {
         let timeLeft = 5;
         startBtn.disabled = true;
+        document.getElementById('status').innerText = "준비: 손을 편안히 하고 기다리세요.";
+        document.getElementById('probBox').innerText = "분석 대기 중...";
+        document.getElementById('probBox').style.background = "#f8f9fa";
+        document.getElementById('probBox').style.color = "var(--primary)";
+
         const timer = setInterval(() => {
-            startBtn.innerText = `준비 하세요... ${timeLeft}s`;
+            startBtn.innerText = `자세 준비 중... ${timeLeft}s`;
             if (timeLeft-- <= 0) { clearInterval(timer); startMeasuring(); }
         }, 1000);
     }
 
+    // 2단계: 실제 측정 (5초) - 카운트다운 시각화
     function startMeasuring() {
         isMeasuring = true; accelData = [];
-        startBtn.innerText = `측정 중... 5s`;
+        chart.data.labels = []; chart.data.datasets[0].data = [];
+        let measureTimeLeft = 5;
+        
+        const measureTimer = setInterval(() => {
+            startBtn.innerText = `측정 중... ${measureTimeLeft}s`;
+            if (measureTimeLeft-- <= 0) { clearInterval(measureTimer); }
+        }, 1000);
+
         window.addEventListener('devicemotion', processMotion);
         setTimeout(stopMeasuring, 5000);
     }
@@ -259,26 +215,22 @@
         const acc = event.acceleration;
         if (!acc || !acc.x) return;
         const mag = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
-        
         if (mag > 13.0) document.getElementById('noiseAlert').style.display = 'block';
         else setTimeout(() => document.getElementById('noiseAlert').style.display = 'none', 500);
-
         accelData.push(mag);
         if (accelData.length % 5 === 0) {
-            chart.data.labels.push("");
-            chart.data.datasets[0].data.push(mag);
-            chart.update();
+            chart.data.labels.push(""); chart.data.datasets[0].data.push(mag); chart.update();
         }
     }
 
     function stopMeasuring() {
         isMeasuring = false;
         window.removeEventListener('devicemotion', processMotion);
-        startBtn.disabled = false;
-        startBtn.innerText = "재측정 하기";
+        startBtn.disabled = false; startBtn.innerText = "재측정";
         analyze();
     }
 
+    // 3단계: 상세 분석 로직 복구
     async function analyze() {
         const n = accelData.length;
         if (n === 0) return;
@@ -292,47 +244,54 @@
         }
         const hz = (peaks / 5).toFixed(1);
         const avgAmp = (ampSum / (peaks || 1)).toFixed(2);
-        let prob = 0;
-        if (hz >= 3.5 && hz <= 6.5) prob += 50; else if (hz > 6.5 && hz <= 12) prob += 30;
-        if (avgAmp > 0.8) prob += 20; if (avgAmp > 1.5) prob += 30;
-        prob = Math.min(prob, 100);
+        
+        // 피로도 확률 계산
+        let fatigueProb = 0;
+        if (hz >= 3.5 && hz <= 6.5) fatigueProb += 50; 
+        else if (hz > 6.5 && hz <= 12) fatigueProb += 30; 
+        if (avgAmp > 0.8) fatigueProb += 20;
+        if (avgAmp > 1.5) fatigueProb += 30;
+        fatigueProb = Math.min(fatigueProb, 100);
 
-        document.getElementById('result').innerHTML = `${hz}<span> Hz</span>`;
-        document.getElementById('probBox').innerText = `피로도 확률: ${prob}%`;
-        saveData(hz, prob); // 분석 결과 DB 저장
+        // UI 업데이트
+        const probBox = document.getElementById('probBox');
+        const statusDiv = document.getElementById('status');
+        document.getElementById('result').innerHTML = `${hz}<span style="font-size:1.5rem"> Hz</span>`;
+        probBox.innerText = `피로도 확률: ${fatigueProb}%`;
+
+        if (fatigueProb >= 80) {
+            if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
+            probBox.style.background = "var(--danger)";
+            probBox.style.color = "white";
+            statusDiv.innerHTML = `<b style="color:var(--danger)">⚠️ 위험: 즉시 휴식 권고</b><br>높은 진전 에너지가 감지되었습니다.`;
+        } else {
+            probBox.style.background = "var(--success)";
+            probBox.style.color = "white";
+            statusDiv.innerHTML = `✅ 정상: 안정적 상태`;
+        }
+        saveData(hz, fatigueProb);
     }
 
     async function saveData(hz, prob) {
-        try {
-            await db.collection('measurements').add({
-                uid: currentUser.uid,
-                subjectId: selectedSubject.id,
-                subjectName: selectedSubject.name,
-                hz: hz,
-                prob: prob,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            });
-        } catch(e) { console.error("Save error:", e); }
+        await db.collection('measurements').add({
+            uid: currentUser.uid, subjectId: selectedSubject.id, subjectName: selectedSubject.name,
+            hz, prob, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
     }
 
     async function showHistory() {
         showView('historyView');
-        try {
-            const snapshot = await db.collection('measurements')
-                .where('uid', '==', currentUser.uid)
-                .get();
-            const tbody = document.getElementById('historyBody');
-            tbody.innerHTML = '';
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                const date = data.timestamp ? data.timestamp.toDate().toLocaleDateString() : '-';
-                const tr = document.createElement('tr');
-                tr.innerHTML = `<td style="padding:12px;">${data.subjectName}</td><td>${data.hz}</td><td>${data.prob}%</td><td>${date}</td>`;
-                tbody.appendChild(tr);
-            });
-        } catch (e) { console.error("History Load Error:", e); }
+        const snapshot = await db.collection('measurements').where('uid', '==', currentUser.uid).get();
+        const tbody = document.getElementById('historyBody');
+        tbody.innerHTML = '';
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const date = data.timestamp ? data.timestamp.toDate().toLocaleDateString() : '-';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td style="padding:10px;">${data.subjectName}</td><td>${data.hz}</td><td>${data.prob}%</td><td>${date}</td>`;
+            tbody.appendChild(tr);
+        });
     }
 </script>
-
 </body>
 </html>
